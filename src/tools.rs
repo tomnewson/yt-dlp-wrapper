@@ -479,13 +479,42 @@ fn copy_optional_active(
 }
 
 fn checksum_for(contents: &str, expected_name: &str) -> Option<String> {
-    contents.lines().find_map(|line| {
-        let mut fields = line.split_whitespace();
-        let hash = fields.next()?;
-        let name = fields.next()?.trim_start_matches('*');
-        (name == expected_name && hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit()))
-            .then(|| hash.to_ascii_lowercase())
-    })
+    contents
+        .lines()
+        .find_map(|line| {
+            let mut fields = line.split_whitespace();
+            let hash = fields.next()?;
+            let name = fields.next()?.trim_start_matches('*');
+            (name == expected_name && is_sha256(hash)).then(|| hash.to_ascii_lowercase())
+        })
+        .or_else(|| checksum_from_get_file_hash(contents, expected_name))
+}
+
+fn checksum_from_get_file_hash(contents: &str, expected_name: &str) -> Option<String> {
+    let mut algorithm = None;
+    let mut hash = None;
+    let mut path = None;
+
+    for line in contents.lines() {
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
+        match key.trim().to_ascii_lowercase().as_str() {
+            "algorithm" => algorithm = Some(value.trim()),
+            "hash" => hash = Some(value.trim()),
+            "path" => path = Some(value.trim()),
+            _ => {}
+        }
+    }
+
+    let hash = hash?;
+    let file_name = path?.rsplit(['/', '\\']).next()?;
+    (algorithm?.eq_ignore_ascii_case("SHA256") && file_name == expected_name && is_sha256(hash))
+        .then(|| hash.to_ascii_lowercase())
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64 && value.chars().all(|character| character.is_ascii_hexdigit())
 }
 
 fn sha256_file(path: &Path) -> io::Result<String> {
@@ -630,6 +659,36 @@ mod tests {
         assert_eq!(
             checksum_for(&format!("{hash} *yt-dlp.exe\n"), "yt-dlp.exe"),
             Some(hash)
+        );
+    }
+
+    #[test]
+    fn parses_deno_get_file_hash_format() {
+        let hash = "ABCDEF0123456789".repeat(4);
+        let contents = format!(
+            "\r\nAlgorithm : SHA256\r\nHash      : {hash}\r\nPath      : C:\\a\\deno\\target\\release\\deno-x86_64-pc-windows-msvc.zip\r\n\r\n"
+        );
+        assert_eq!(
+            checksum_for(&contents, "deno-x86_64-pc-windows-msvc.zip"),
+            Some(hash.to_ascii_lowercase())
+        );
+    }
+
+    #[test]
+    fn rejects_get_file_hash_for_wrong_file_or_algorithm() {
+        let hash = "c".repeat(64);
+        let wrong_file = format!("Algorithm : SHA256\nHash : {hash}\nPath : C:\\temp\\other.zip\n");
+        assert_eq!(
+            checksum_for(&wrong_file, "deno-x86_64-pc-windows-msvc.zip"),
+            None
+        );
+
+        let wrong_algorithm = format!(
+            "Algorithm : SHA512\nHash : {hash}\nPath : C:\\temp\\deno-x86_64-pc-windows-msvc.zip\n"
+        );
+        assert_eq!(
+            checksum_for(&wrong_algorithm, "deno-x86_64-pc-windows-msvc.zip"),
+            None
         );
     }
 

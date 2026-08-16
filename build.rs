@@ -1,5 +1,7 @@
 fn main() {
-    slint_build::compile("src/app.slint").expect("failed to compile the Slint UI");
+    let config = slint_build::CompilerConfiguration::new().with_style("fluent-dark".into());
+    slint_build::compile_with_config("src/app.slint", config)
+        .expect("failed to compile the Slint UI");
 
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         winresource::WindowsResource::new()
