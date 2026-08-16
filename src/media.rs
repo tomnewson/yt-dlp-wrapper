@@ -472,7 +472,6 @@ fn configure_child(command: &mut Command, tool_directory: &Path) {
 
 #[cfg(windows)]
 fn hide_console(command: &mut Command) {
-    use std::os::windows::process::CommandExt;
     command.creation_flags(0x0800_0000);
 }
 
@@ -492,12 +491,16 @@ async fn kill_process_tree(process_id: Option<u32>) {
 async fn kill_process_tree(_process_id: Option<u32>) {}
 
 #[cfg(windows)]
-struct ProcessJob(windows_sys::Win32::Foundation::HANDLE);
+struct ProcessJob(std::os::windows::io::OwnedHandle);
 
 #[cfg(windows)]
 impl ProcessJob {
     fn attach(child: &tokio::process::Child) -> io::Result<Self> {
-        use std::{mem::size_of, ptr};
+        use std::{
+            mem::size_of,
+            os::windows::io::{AsRawHandle, FromRawHandle},
+            ptr,
+        };
         use windows_sys::Win32::{
             Foundation::GetLastError,
             System::JobObjects::{
@@ -510,50 +513,39 @@ impl ProcessJob {
         // SAFETY: The structures are initialized, the name is optional, and the child
         // process handle stays valid while this function assigns it to the job.
         unsafe {
-            let handle = CreateJobObjectW(ptr::null(), ptr::null());
-            if handle.is_null() {
+            let raw_handle = CreateJobObjectW(ptr::null(), ptr::null());
+            if raw_handle.is_null() {
                 return Err(io::Error::from_raw_os_error(GetLastError() as i32));
             }
+            let handle = std::os::windows::io::OwnedHandle::from_raw_handle(raw_handle);
             let mut information = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
             information.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
             if SetInformationJobObject(
-                handle,
+                handle.as_raw_handle(),
                 JobObjectExtendedLimitInformation,
                 (&information as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
                 size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
             ) == 0
             {
-                let error = io::Error::from_raw_os_error(GetLastError() as i32);
-                windows_sys::Win32::Foundation::CloseHandle(handle);
-                return Err(error);
+                return Err(io::Error::from_raw_os_error(GetLastError() as i32));
             }
-            let process_handle = child.raw_handle().ok_or_else(|| {
-                windows_sys::Win32::Foundation::CloseHandle(handle);
-                io::Error::other("child process has no Windows handle")
-            })? as windows_sys::Win32::Foundation::HANDLE;
-            if AssignProcessToJobObject(handle, process_handle) == 0 {
-                let error = io::Error::from_raw_os_error(GetLastError() as i32);
-                windows_sys::Win32::Foundation::CloseHandle(handle);
-                return Err(error);
+            let process_handle = child
+                .raw_handle()
+                .ok_or_else(|| io::Error::other("child process has no Windows handle"))?
+                as windows_sys::Win32::Foundation::HANDLE;
+            if AssignProcessToJobObject(handle.as_raw_handle(), process_handle) == 0 {
+                return Err(io::Error::from_raw_os_error(GetLastError() as i32));
             }
             Ok(Self(handle))
         }
     }
 
     fn terminate(&self) {
+        use std::os::windows::io::AsRawHandle;
+
         // SAFETY: self.0 is a live job handle until Drop.
         unsafe {
-            windows_sys::Win32::System::JobObjects::TerminateJobObject(self.0, 1);
-        }
-    }
-}
-
-#[cfg(windows)]
-impl Drop for ProcessJob {
-    fn drop(&mut self) {
-        // SAFETY: this handle was returned by CreateJobObjectW and is closed once here.
-        unsafe {
-            windows_sys::Win32::Foundation::CloseHandle(self.0);
+            windows_sys::Win32::System::JobObjects::TerminateJobObject(self.0.as_raw_handle(), 1);
         }
     }
 }
