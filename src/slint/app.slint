@@ -2,7 +2,7 @@ import { Button, CheckBox, LineEdit, ProgressIndicator, ScrollView, Slider, Text
 import { Palette } from "palette.slint";
 
 export component AppWindow inherits Window {
-    title: "yt-dlp-wrapper";
+    title: "YT-DLP Wrapper";
     preferred-width: 520px;
     preferred-height: 480px;
     min-width: 520px;
@@ -51,7 +51,7 @@ export component AppWindow inherits Window {
                 vertical-stretch: 0;
 
                 Text {
-                    text: "yt-dlp-wrapper";
+                    text: "YT-DLP Wrapper";
                     font-size: 24px;
                     font-weight: 700;
                     color: Palette.text-light;
@@ -76,7 +76,7 @@ export component AppWindow inherits Window {
                     x: 14px;
                     y: 12px;
                     width: parent.width - 28px;
-                    text: "yt-dlp-wrapper is GPLv3 software. It uses Slint and manages yt-dlp, FFmpeg, and Deno. Third-party licence files are stored with downloaded tools.";
+                    text: "YT-DLP Wrapper is GPLv3 software. It uses Slint and manages yt-dlp, FFmpeg, and Deno. Third-party licence files are stored with downloaded tools.";
                     wrap: word-wrap;
                     color: Palette.text-dark;
                 }
