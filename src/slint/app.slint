@@ -12,7 +12,7 @@ export component AppWindow inherits Window {
     in-out property <string> url: "";
     in-out property <string> output-folder: "";
     in-out property <bool> audio-only: false;
-    in-out property <float> video-quality: 3;
+    in-out property <float> video-quality: 2;
     in-out property <bool> busy: true;
     in-out property <bool> cancellable: false;
     in-out property <bool> tools-ready: false;
@@ -76,7 +76,7 @@ export component AppWindow inherits Window {
                     x: 14px;
                     y: 12px;
                     width: parent.width - 28px;
-                    text: "YT-DLP Wrapper is GPLv3 software. It uses Slint and manages yt-dlp, FFmpeg, and Deno. Third-party licence files are stored with downloaded tools.";
+                    text: "This wrapper is opinionated and will always export H.264 + AAC MP4s for maximum compatibility with Premiere Pro and the like.\n\nGPLv3 licensed, using Slint and managing yt-dlp, FFmpeg, and Deno. Third-party licence files are stored with downloaded tools.";
                     wrap: word-wrap;
                     color: Palette.text-dark;
                 }
@@ -148,10 +148,14 @@ export component AppWindow inherits Window {
                     height: 20px;
                     vertical-stretch: 0;
                     minimum: 0;
-                    maximum: 3;
+                    maximum: 2;
                     step: 1;
                     value <=> root.video-quality;
                     enabled: root.tools-ready && !root.busy && !root.audio-only;
+
+                    Tooltip {
+                        text: @markdown("1080p downloads usually won't need slow, lossy re-encoding, higher resolutions will.");
+                    }
                 }
                 HorizontalLayout {
                     height: 16px;
@@ -159,7 +163,6 @@ export component AppWindow inherits Window {
 
                     Text { text: "1080p"; color: Palette.text-light; horizontal-stretch: 1; }
                     Text { text: "1440p"; color: Palette.text-light; horizontal-stretch: 1; horizontal-alignment: center; }
-                    Text { text: "4K"; color: Palette.text-light; horizontal-stretch: 1; horizontal-alignment: center; }
                     Text { text: "Best"; color: Palette.text-light; horizontal-stretch: 1; horizontal-alignment: right; }
                 }
             }

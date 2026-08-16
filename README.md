@@ -6,7 +6,7 @@
 - Audio only: M4A with AAC audio
 
 Before downloading video, the application checks the available formats. The quality slider can
-limit the video to 1080p, 1440p, or 4K, or retain the default Best setting. A limited setting selects
+limit the video to 1080p or 1440p, or retain the default Best setting. A limited setting selects
 the highest available resolution at or below that limit; Best selects the maximum advertised
 resolution. At the selected resolution the application prefers H.264 and AAC streams so they can
 be used directly or remuxed without generation loss. It downloads another video codec and
@@ -70,6 +70,15 @@ Install the stable Rust toolchain and the MSVC Windows build tools. Then run:
 cargo test
 cargo build --release
 ```
+
+Enable the repository's pre-commit checks in each new checkout:
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+The hook checks formatting and compilation, runs the tests, and treats every Clippy warning as an
+error before allowing a commit.
 
 The executable is written to `target\release\yt-dlp-wrapper.exe`.
 

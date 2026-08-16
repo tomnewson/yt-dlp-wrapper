@@ -11,7 +11,6 @@ pub enum DownloadMode {
 pub enum VideoQuality {
     P1080,
     P1440,
-    P2160,
     Best,
 }
 
@@ -20,7 +19,6 @@ impl VideoQuality {
         match value.round() as i32 {
             i32::MIN..=0 => Self::P1080,
             1 => Self::P1440,
-            2 => Self::P2160,
             _ => Self::Best,
         }
     }
@@ -29,7 +27,6 @@ impl VideoQuality {
         match self {
             Self::P1080 => Some(1080),
             Self::P1440 => Some(1440),
-            Self::P2160 => Some(2160),
             Self::Best => None,
         }
     }

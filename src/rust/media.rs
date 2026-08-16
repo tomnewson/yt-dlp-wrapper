@@ -1585,15 +1585,12 @@ mod tests {
         let full_hd = select_formats(&formats, DownloadMode::Video, VideoQuality::P1080).unwrap();
         let fourteen_forty =
             select_formats(&formats, DownloadMode::Video, VideoQuality::P1440).unwrap();
-        let four_k = select_formats(&formats, DownloadMode::Video, VideoQuality::P2160).unwrap();
         let best = select_formats(&formats, DownloadMode::Video, VideoQuality::Best).unwrap();
 
         assert_eq!(full_hd.format_spec, "h264-1080+aac");
         assert!(full_hd.summary.contains("1080p H.264/AAC"));
         assert_eq!(fourteen_forty.format_spec, "av1-1440+aac");
         assert!(fourteen_forty.summary.contains("at 1440p"));
-        assert_eq!(four_k.format_spec, "av1-2160+aac");
-        assert!(four_k.summary.contains("at 2160p"));
         assert_eq!(best.format_spec, "av1-4320+aac");
         assert!(best.summary.contains("at 4320p"));
     }
