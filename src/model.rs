@@ -7,10 +7,39 @@ pub enum DownloadMode {
     AudioOnly,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VideoQuality {
+    P1080,
+    P1440,
+    P2160,
+    Best,
+}
+
+impl VideoQuality {
+    pub fn from_slider_value(value: f32) -> Self {
+        match value.round() as i32 {
+            i32::MIN..=0 => Self::P1080,
+            1 => Self::P1440,
+            2 => Self::P2160,
+            _ => Self::Best,
+        }
+    }
+
+    pub fn maximum_dimension(self) -> Option<u32> {
+        match self {
+            Self::P1080 => Some(1080),
+            Self::P1440 => Some(1440),
+            Self::P2160 => Some(2160),
+            Self::Best => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DownloadRequest {
     pub url: String,
     pub mode: DownloadMode,
+    pub video_quality: VideoQuality,
     pub output_directory: PathBuf,
 }
 
@@ -19,6 +48,7 @@ pub enum JobPhase {
     Preparing,
     Downloading,
     Inspecting,
+    Remuxing,
     Converting,
     Finalizing,
     Completed,
@@ -33,7 +63,6 @@ pub struct ProgressUpdate {
     pub downloaded_bytes: Option<u64>,
     pub total_bytes: Option<u64>,
     pub speed_bytes_per_second: Option<u64>,
-    pub eta_seconds: Option<u64>,
     pub message: String,
 }
 
@@ -45,7 +74,6 @@ impl ProgressUpdate {
             downloaded_bytes: None,
             total_bytes: None,
             speed_bytes_per_second: None,
-            eta_seconds: None,
             message: message.into(),
         }
     }

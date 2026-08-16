@@ -8,7 +8,7 @@ mod tools;
 use config::AppConfig;
 use directories::UserDirs;
 use media::MediaError;
-use model::{ActiveToolset, DownloadMode, DownloadRequest};
+use model::{ActiveToolset, DownloadMode, DownloadRequest, VideoQuality};
 use slint::{ComponentHandle, SharedString, Weak};
 use std::{
     path::{Path, PathBuf},
@@ -150,7 +150,7 @@ fn wire_callbacks(ui: &AppWindow, runtime: Arc<Runtime>, state: Arc<AppRuntime>)
     let download_runtime = Arc::clone(&runtime);
     let download_state = Arc::clone(&state);
     let download_weak = ui.as_weak();
-    ui.on_start_download(move |url, audio_only, output_folder| {
+    ui.on_start_download(move |url, audio_only, output_folder, video_quality| {
         schedule_download(
             Arc::clone(&download_runtime),
             Arc::clone(&download_state),
@@ -158,6 +158,7 @@ fn wire_callbacks(ui: &AppWindow, runtime: Arc<Runtime>, state: Arc<AppRuntime>)
             url.to_string(),
             audio_only,
             PathBuf::from(output_folder.to_string()),
+            VideoQuality::from_slider_value(video_quality),
         );
     });
 
@@ -354,6 +355,7 @@ fn schedule_download(
     url: String,
     audio_only: bool,
     output_directory: PathBuf,
+    video_quality: VideoQuality,
 ) {
     if !is_http_url(&url) {
         set_ui(&weak, |ui| {
@@ -403,6 +405,7 @@ fn schedule_download(
             } else {
                 DownloadMode::Video
             },
+            video_quality,
             output_directory,
         };
         let progress_weak = weak.clone();
@@ -505,9 +508,9 @@ fn initialize_logging(root: &Path) -> Option<tracing_appender::non_blocking::Wor
 #[cfg(windows)]
 fn open_in_file_manager(path: &Path) {
     use std::os::windows::process::CommandExt;
-    let argument = format!("/select,{}", path.display());
+    let directory = path.parent().unwrap_or(path);
     let _ = Command::new("explorer.exe")
-        .arg(argument)
+        .arg(directory)
         .creation_flags(0x0800_0000)
         .spawn();
 }

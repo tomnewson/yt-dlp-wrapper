@@ -1,17 +1,18 @@
-import { Button, CheckBox, LineEdit, ProgressIndicator, ScrollView, TextEdit } from "std-widgets.slint";
+import { Button, CheckBox, LineEdit, ProgressIndicator, ScrollView, Slider, TextEdit } from "std-widgets.slint";
 import { Palette } from "palette.slint";
 
 export component AppWindow inherits Window {
     title: "yt-dlp-wrapper";
-    preferred-width: 650px;
-    preferred-height: 520px;
+    preferred-width: 520px;
+    preferred-height: 480px;
     min-width: 520px;
-    min-height: 420px;
+    min-height: 480px;
     background: Palette.background;
 
     in-out property <string> url: "";
     in-out property <string> output-folder: "";
     in-out property <bool> audio-only: false;
+    in-out property <float> video-quality: 3;
     in-out property <bool> busy: true;
     in-out property <bool> cancellable: false;
     in-out property <bool> tools-ready: false;
@@ -28,7 +29,7 @@ export component AppWindow inherits Window {
     in-out property <string> details-text: "";
 
     callback browse-output();
-    callback start-download(string, bool, string);
+    callback start-download(string, bool, string, float);
     callback cancel-download();
     callback install-tools();
     callback defer-update();
@@ -46,15 +47,22 @@ export component AppWindow inherits Window {
             spacing: 16px;
 
             HorizontalLayout {
+                height: 36px;
+                vertical-stretch: 0;
+
                 Text {
                     text: "yt-dlp-wrapper";
                     font-size: 24px;
                     font-weight: 700;
                     color: Palette.text-light;
                     horizontal-stretch: 1;
+                    vertical-alignment: center;
                 }
                 Button {
                     text: "About";
+                    width: 72px;
+                    height: 36px;
+                    vertical-stretch: 0;
                     clicked => { root.show-about = !root.show-about; }
                 }
             }
@@ -107,45 +115,132 @@ export component AppWindow inherits Window {
                 }
             }
 
-            Text { text: "Video URL"; font-weight: 600; color: Palette.text-light; }
-            LineEdit {
-                text <=> root.url;
-                placeholder-text: "https://…";
-                enabled: root.tools-ready && !root.busy;
+            VerticalLayout {
+                spacing: 6px;
+                vertical-stretch: 0;
+
+                Text {
+                    text: "Video URL";
+                    font-weight: 600;
+                    color: Palette.text-light;
+                    vertical-stretch: 0;
+                }
+                LineEdit {
+                    height: 36px;
+                    vertical-stretch: 0;
+                    text <=> root.url;
+                    placeholder-text: "https://…";
+                    enabled: root.tools-ready && !root.busy;
+                }
+            }
+
+            VerticalLayout {
+                spacing: 4px;
+                vertical-stretch: 0;
+
+                Text {
+                    text: "Video quality";
+                    font-weight: 600;
+                    color: Palette.text-light;
+                    vertical-stretch: 0;
+                }
+                Slider {
+                    height: 20px;
+                    vertical-stretch: 0;
+                    minimum: 0;
+                    maximum: 3;
+                    step: 1;
+                    value <=> root.video-quality;
+                    enabled: root.tools-ready && !root.busy && !root.audio-only;
+                }
+                HorizontalLayout {
+                    height: 16px;
+                    vertical-stretch: 0;
+
+                    Text { text: "1080p"; color: Palette.text-light; horizontal-stretch: 1; }
+                    Text { text: "1440p"; color: Palette.text-light; horizontal-stretch: 1; horizontal-alignment: center; }
+                    Text { text: "4K"; color: Palette.text-light; horizontal-stretch: 1; horizontal-alignment: center; }
+                    Text { text: "Best"; color: Palette.text-light; horizontal-stretch: 1; horizontal-alignment: right; }
+                }
             }
 
             CheckBox {
+                height: 28px;
+                vertical-stretch: 0;
                 text: "Audio only (M4A with AAC)";
                 checked <=> root.audio-only;
                 enabled: root.tools-ready && !root.busy;
             }
 
-            Text { text: "Output folder"; font-weight: 600; color: Palette.text-light; }
-            HorizontalLayout {
-                LineEdit { text <=> root.output-folder; read-only: true; horizontal-stretch: 1; }
-                Button { text: "Browse…"; enabled: !root.busy; clicked => { root.browse-output(); } }
-            }
+            VerticalLayout {
+                spacing: 6px;
+                vertical-stretch: 0;
 
-            ProgressIndicator { progress: root.progress; indeterminate: root.busy && root.progress == 0; }
-            Text { text: root.status-text; wrap: word-wrap; color: root.failed ? Palette.text-error : Palette.text-light; }
-
-            HorizontalLayout {
-                if !root.busy && !root.completed: Button {
-                    text: "Download";
-                    enabled: root.tools-ready && root.url != "" && root.output-folder != "" && !root.update-available;
-                    clicked => { root.start-download(root.url, root.audio-only, root.output-folder); }
+                Text {
+                    text: "Output folder";
+                    font-weight: 600;
+                    color: Palette.text-light;
+                    vertical-stretch: 0;
                 }
-                if root.busy && root.cancellable: Button { text: "Cancel"; clicked => { root.cancel-download(); } }
-                if root.completed: Button { text: "Open folder"; clicked => { root.open-folder(); } }
-                if root.completed: Button {
-                    text: "Download another";
-                    clicked => {
-                        root.completed = false;
-                        root.url = "";
-                        root.progress = 0;
-                        root.status-text = "Ready";
+                HorizontalLayout {
+                    height: 36px;
+                    vertical-stretch: 0;
+                    spacing: 8px;
+
+                    LineEdit {
+                        height: 36px;
+                        vertical-stretch: 0;
+                        text <=> root.output-folder;
+                        read-only: true;
+                        horizontal-stretch: 1;
+                    }
+                    Button {
+                        width: 84px;
+                        height: 36px;
+                        vertical-stretch: 0;
+                        text: "Browse…";
+                        enabled: !root.busy;
+                        clicked => { root.browse-output(); }
                     }
                 }
+            }
+
+            Rectangle { vertical-stretch: 1; }
+
+            ProgressIndicator {
+                vertical-stretch: 0;
+                progress: root.progress;
+                indeterminate: root.busy && root.progress == 0;
+            }
+            status-container := Rectangle {
+                height: max(status-label.preferred-height, 20px);
+                vertical-stretch: 0;
+
+                status-label := Text {
+                    width: parent.width;
+                    height: parent.height;
+                    text: root.status-text;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                    color: root.failed ? Palette.text-error : Palette.text-light;
+                }
+
+                if root.completed: TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open-folder(); }
+                }
+            }
+
+            HorizontalLayout {
+                height: 36px;
+                vertical-stretch: 0;
+
+                if !root.busy: Button {
+                    text: "Download";
+                    enabled: root.tools-ready && root.url != "" && root.output-folder != "" && !root.update-available;
+                    clicked => { root.start-download(root.url, root.audio-only, root.output-folder, root.video-quality); }
+                }
+                if root.busy && root.cancellable: Button { text: "Cancel"; clicked => { root.cancel-download(); } }
                 if root.details-text != "": Button {
                     text: root.show-details ? "Hide details" : "Show details";
                     clicked => { root.show-details = !root.show-details; }
