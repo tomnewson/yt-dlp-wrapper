@@ -5,6 +5,10 @@ edition = "2024"
 license = "GPL-3.0-only"
 description = "A minimal Windows-first GUI for yt-dlp"
 
+[[bin]]
+name = "yt-dlp-wrapper"
+path = "src/rust/main.rs"
+
 [dependencies]
 directories = "6"
 fs2 = "0.4"
