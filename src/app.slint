@@ -1,0 +1,153 @@
+import { Button, CheckBox, LineEdit, ProgressIndicator, ScrollView } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    title: "yt-dlp-wrapper";
+    preferred-width: 650px;
+    preferred-height: 520px;
+    min-width: 520px;
+    min-height: 420px;
+    background: #f5f6f8;
+
+    in-out property <string> url: "";
+    in-out property <string> output-folder: "";
+    in-out property <bool> audio-only: false;
+    in-out property <bool> busy: true;
+    in-out property <bool> cancellable: false;
+    in-out property <bool> tools-ready: false;
+    in-out property <bool> setup-required: false;
+    in-out property <bool> update-available: false;
+    in-out property <bool> can-install-tools: false;
+    in-out property <bool> completed: false;
+    in-out property <bool> failed: false;
+    in-out property <bool> show-details: false;
+    in-out property <bool> show-about: false;
+    in-out property <float> progress: 0;
+    in-out property <string> status-text: "Checking required tools…";
+    in-out property <string> update-summary: "";
+    in-out property <string> details-text: "";
+
+    callback browse-output();
+    callback start-download(string, bool, string);
+    callback cancel-download();
+    callback install-tools();
+    callback defer-update();
+    callback retry-tool-check();
+    callback open-folder();
+
+    VerticalLayout {
+        padding: 28px;
+        spacing: 16px;
+
+        HorizontalLayout {
+            Text {
+                text: "yt-dlp-wrapper";
+                font-size: 24px;
+                font-weight: 700;
+                color: #20242b;
+                horizontal-stretch: 1;
+            }
+            Button {
+                text: "About";
+                clicked => { root.show-about = !root.show-about; }
+            }
+        }
+
+        if root.show-about: Rectangle {
+            background: #e8edf5;
+            border-radius: 8px;
+            height: 104px;
+            Text {
+                x: 14px;
+                y: 12px;
+                width: parent.width - 28px;
+                text: "yt-dlp-wrapper is GPLv3 software. It uses Slint and manages yt-dlp, FFmpeg, and Deno. Third-party licence files are stored with downloaded tools.";
+                wrap: word-wrap;
+                color: #303640;
+            }
+        }
+
+        if root.setup-required: Rectangle {
+            background: #fff4dd;
+            border-radius: 8px;
+            height: 120px;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 8px;
+                Text { text: "Required tools are not installed."; font-weight: 700; color: #3b2c0e; }
+                Text { text: root.update-summary; wrap: word-wrap; color: #59451e; }
+                HorizontalLayout {
+                    Button { text: root.busy ? "Working…" : "Install tools"; enabled: !root.busy && root.can-install-tools; clicked => { root.install-tools(); } }
+                    Button { text: "Retry check"; enabled: !root.busy; clicked => { root.retry-tool-check(); } }
+                }
+            }
+        }
+
+        if root.update-available && !root.setup-required: Rectangle {
+            background: #e6f0ff;
+            border-radius: 8px;
+            height: 110px;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 8px;
+                Text { text: "Tool updates are available."; font-weight: 700; color: #173a67; }
+                Text { text: root.update-summary; wrap: word-wrap; color: #264c79; }
+                HorizontalLayout {
+                    Button { text: "Update"; enabled: !root.busy && root.can-install-tools; clicked => { root.install-tools(); } }
+                    Button { text: "Later"; enabled: !root.busy; clicked => { root.defer-update(); } }
+                }
+            }
+        }
+
+        Text { text: "Video URL"; font-weight: 600; color: #303640; }
+        LineEdit {
+            text <=> root.url;
+            placeholder-text: "https://…";
+            enabled: root.tools-ready && !root.busy;
+        }
+
+        CheckBox {
+            text: "Audio only (M4A with AAC)";
+            checked <=> root.audio-only;
+            enabled: root.tools-ready && !root.busy;
+        }
+
+        Text { text: "Output folder"; font-weight: 600; color: #303640; }
+        HorizontalLayout {
+            LineEdit { text <=> root.output-folder; read-only: true; horizontal-stretch: 1; }
+            Button { text: "Browse…"; enabled: !root.busy; clicked => { root.browse-output(); } }
+        }
+
+        ProgressIndicator { progress: root.progress; indeterminate: root.busy && root.progress == 0; }
+        Text { text: root.status-text; wrap: word-wrap; color: root.failed ? #a12525 : #39414d; }
+
+        HorizontalLayout {
+            if !root.busy && !root.completed: Button {
+                text: "Download";
+                enabled: root.tools-ready && root.url != "" && root.output-folder != "" && !root.update-available;
+                clicked => { root.start-download(root.url, root.audio-only, root.output-folder); }
+            }
+            if root.busy && root.cancellable: Button { text: "Cancel"; clicked => { root.cancel-download(); } }
+            if root.completed: Button { text: "Open folder"; clicked => { root.open-folder(); } }
+            if root.completed: Button {
+                text: "Download another";
+                clicked => {
+                    root.completed = false;
+                    root.url = "";
+                    root.progress = 0;
+                    root.status-text = "Ready";
+                }
+            }
+            if root.details-text != "": Button {
+                text: root.show-details ? "Hide details" : "Show details";
+                clicked => { root.show-details = !root.show-details; }
+            }
+        }
+
+        if root.show-details: ScrollView {
+            vertical-stretch: 1;
+            Text { text: root.details-text; wrap: word-wrap; color: #4b515b; }
+        }
+
+        if !root.show-details: Rectangle { vertical-stretch: 1; background: transparent; }
+    }
+}

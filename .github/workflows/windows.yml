@@ -1,0 +1,75 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+
+      - name: Cache Cargo files
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+
+      - name: Run tests
+        run: cargo test --target x86_64-pc-windows-msvc
+
+      - name: Build release executable
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/yt-dlp-wrapper
+          Copy-Item target/x86_64-pc-windows-msvc/release/yt-dlp-wrapper.exe dist/yt-dlp-wrapper/
+          Copy-Item COPYING,README.md,THIRD_PARTY.md dist/yt-dlp-wrapper/
+          Compress-Archive -Path dist/yt-dlp-wrapper -DestinationPath dist/yt-dlp-wrapper-windows-x64.zip
+
+      - name: Upload portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: yt-dlp-wrapper-windows-x64
+          path: dist/yt-dlp-wrapper-windows-x64.zip
+          if-no-files-found: error
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download portable ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: yt-dlp-wrapper-windows-x64
+          path: dist
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/yt-dlp-wrapper-windows-x64.zip --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" dist/yt-dlp-wrapper-windows-x64.zip --generate-notes --verify-tag --repo "$GITHUB_REPOSITORY"
+          fi
