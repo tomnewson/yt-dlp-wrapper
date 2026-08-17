@@ -15,7 +15,7 @@ public sealed class MainWindowViewModelTests
         backend.Enqueue("initialize", Json("""{"backendVersion":"0.1.0","outputFolder":"C:/Videos"}"""));
         backend.Enqueue("checkTools", Json(
             """{"state":"ready","toolsReady":true,"canInstallTools":false,"updateSummary":"","statusText":"Ready. All tools are current."}"""));
-        var viewModel = new MainWindowViewModel(backend, new FakePlatformServices());
+        var viewModel = CreateViewModel(backend);
 
         await viewModel.InitializeAsync();
 
@@ -32,10 +32,8 @@ public sealed class MainWindowViewModelTests
         backend.Enqueue("initialize", Json("""{"backendVersion":"0.1.0","outputFolder":"C:/Videos"}"""));
         backend.Enqueue("checkTools", Json(
             """{"state":"updateAvailable","toolsReady":true,"canInstallTools":true,"updateSummary":"yt-dlp 1","statusText":"Updates are available."}"""));
-        var viewModel = new MainWindowViewModel(backend, new FakePlatformServices())
-        {
-            Url = "https://example.com/video",
-        };
+        var viewModel = CreateViewModel(backend);
+        viewModel.Url = "https://example.com/video";
 
         await viewModel.InitializeAsync();
         Assert.False(viewModel.CanDownload);
@@ -50,16 +48,14 @@ public sealed class MainWindowViewModelTests
     {
         var backend = new FakeBackendClient();
         backend.Enqueue("startDownload", Json("""{"operationId":"operation-1"}"""));
-        var viewModel = new MainWindowViewModel(backend, new FakePlatformServices())
-        {
-            Url = "https://example.com/video",
-            OutputFolder = "C:/Videos",
-            ToolsReady = true,
-            Busy = false,
-        };
+        var viewModel = CreateViewModel(backend);
+        viewModel.Url = "https://example.com/video";
+        viewModel.OutputFolder = "C:/Videos";
+        viewModel.ToolsReady = true;
+        viewModel.Busy = false;
 
         await viewModel.StartDownloadCommand.ExecuteAsync(null);
-        viewModel.HandleBackendEvent(new BackendEvent(
+        backend.Raise(new BackendEvent(
             "operation-1",
             "operationCompleted",
             Json("""{"operationKind":"download","path":"C:/Videos/file.mp4"}""")));
@@ -74,16 +70,14 @@ public sealed class MainWindowViewModelTests
     {
         var backend = new FakeBackendClient();
         backend.Enqueue("installTools", Json("""{"operationId":"operation-2"}"""));
-        var viewModel = new MainWindowViewModel(backend, new FakePlatformServices())
-        {
-            ToolsReady = true,
-            UpdateAvailable = true,
-            CanInstallTools = true,
-            Busy = false,
-        };
+        var viewModel = CreateViewModel(backend);
+        viewModel.ToolsReady = true;
+        viewModel.UpdateAvailable = true;
+        viewModel.CanInstallTools = true;
+        viewModel.Busy = false;
 
         await viewModel.InstallToolsCommand.ExecuteAsync(null);
-        viewModel.HandleBackendEvent(new BackendEvent(
+        backend.Raise(new BackendEvent(
             "operation-2",
             "operationCancelled",
             Json("""{"operationKind":"toolInstall"}""")));
@@ -97,7 +91,7 @@ public sealed class MainWindowViewModelTests
     public async Task FailedStartupCanBeRetriedExplicitly()
     {
         var backend = new FakeBackendClient();
-        var viewModel = new MainWindowViewModel(backend, new FakePlatformServices());
+        var viewModel = CreateViewModel(backend);
 
         await viewModel.InitializeAsync();
         Assert.True(viewModel.ShowRestartButton);
@@ -111,7 +105,26 @@ public sealed class MainWindowViewModelTests
         Assert.True(viewModel.ToolsReady);
     }
 
+    [Fact]
+    public void BackendExitDisablesOperations()
+    {
+        var backend = new FakeBackendClient();
+        var viewModel = CreateViewModel(backend);
+        viewModel.ToolsReady = true;
+        viewModel.Busy = false;
+
+        backend.Exit("Backend failed.");
+
+        Assert.True(viewModel.EngineUnavailable);
+        Assert.False(viewModel.ToolsReady);
+        Assert.False(viewModel.CanDownload);
+        Assert.Equal("Backend failed.", viewModel.DetailsText);
+    }
+
     private static JsonElement Json(string value) => JsonDocument.Parse(value).RootElement.Clone();
+
+    private static MainWindowViewModel CreateViewModel(FakeBackendClient backend) =>
+        new(backend, new FakePlatformServices(), action => action());
 }
 
 internal sealed class FakeBackendClient : IBackendClient
@@ -149,9 +162,6 @@ internal sealed class FakeBackendClient : IBackendClient
 
 internal sealed class FakePlatformServices : IPlatformServices
 {
-    public string PlatformId => "windows-x64";
-    public string DataRoot => "C:/App/yt-dlp-wrapper-data";
-
     public ProcessStartInfo CreateBackendStartInfo() => new("backend");
     public Task<string?> PickOutputFolderAsync(string? currentFolder) => Task.FromResult(currentFolder);
     public void RevealFile(string path) { }

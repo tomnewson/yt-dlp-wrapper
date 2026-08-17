@@ -3,7 +3,7 @@ name = "yt-dlp-wrapper"
 version = "0.1.0"
 edition = "2024"
 license = "GPL-3.0-only"
-description = "A minimal Windows-first GUI for yt-dlp"
+description = "Rust sidecar for the yt-dlp-wrapper desktop application"
 
 [[bin]]
 name = "yt-dlp-wrapper-backend"

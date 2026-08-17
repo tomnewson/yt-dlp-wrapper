@@ -10,52 +10,72 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private readonly IBackendClient _backend;
     private readonly IPlatformServices _platform;
+    private readonly Action<Action> _dispatch;
     private string? _activeOperationId;
     private bool _toolsReadyBeforeOperation;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownload))]
     private string _url = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownload))]
     private string _outputFolder = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanChangeQuality))]
     private bool _audioOnly;
 
     [ObservableProperty]
     private double _videoQuality = 2;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(
+        nameof(CanEdit),
+        nameof(CanBrowse),
+        nameof(CanChangeQuality),
+        nameof(CanDownload),
+        nameof(ShowDownloadButton),
+        nameof(ShowCancelButton),
+        nameof(IsProgressIndeterminate),
+        nameof(ShowRestartButton))]
     private bool _busy = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCancelButton))]
     private bool _cancellable;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEdit), nameof(CanChangeQuality), nameof(CanDownload))]
     private bool _toolsReady;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowInstallPanel), nameof(ShowUpdatePanel))]
     private bool _setupRequired;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownload), nameof(ShowUpdatePanel))]
     private bool _updateAvailable;
 
     [ObservableProperty]
     private bool _canInstallTools;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCompletedFile))]
     private bool _completed;
 
     [ObservableProperty]
     private bool _failed;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DetailsButtonText))]
     private bool _showDetails;
 
     [ObservableProperty]
     private bool _showAbout;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsProgressIndeterminate))]
     private double _progress;
 
     [ObservableProperty]
@@ -65,18 +85,30 @@ public partial class MainWindowViewModel : ObservableObject
     private string _updateSummary = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDetailsButton))]
     private string _detailsText = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCompletedFile))]
     private string? _completedPath;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowRestartButton))]
     private bool _engineUnavailable;
 
     public MainWindowViewModel(IBackendClient backend, IPlatformServices platform)
+        : this(backend, platform, action => Dispatcher.UIThread.Post(action))
+    {
+    }
+
+    internal MainWindowViewModel(
+        IBackendClient backend,
+        IPlatformServices platform,
+        Action<Action> dispatch)
     {
         _backend = backend;
         _platform = platform;
+        _dispatch = dispatch;
         _backend.EventReceived += OnBackendEvent;
         _backend.BackendExited += OnBackendExited;
     }
@@ -129,14 +161,7 @@ public partial class MainWindowViewModel : ObservableObject
         EngineUnavailable = false;
         Busy = true;
         StatusText = "Restarting the download engine…";
-        try
-        {
-            await _backend.StopAsync();
-        }
-        catch (Exception)
-        {
-            // Initialization below reports a useful error if cleanup was incomplete.
-        }
+        await IgnoreBackendStopFailureAsync();
         await InitializeAsync();
     }
 
@@ -189,10 +214,6 @@ public partial class MainWindowViewModel : ObservableObject
             ApplyFailure("Could not check required tools.", error);
             UpdateSummary = "An internet connection is required for the first setup.";
         }
-        finally
-        {
-            RefreshComputedProperties();
-        }
     }
 
     [RelayCommand]
@@ -225,7 +246,6 @@ public partial class MainWindowViewModel : ObservableObject
         Cancellable = false;
         ToolsReady = true;
         StatusText = "Ready. The cached tools will be used.";
-        RefreshComputedProperties();
     }
 
     [RelayCommand]
@@ -268,7 +288,6 @@ public partial class MainWindowViewModel : ObservableObject
 
         Cancellable = false;
         StatusText = "Cancelling…";
-        RefreshComputedProperties();
         try
         {
             await _backend.SendAsync("cancel", new { operationId = _activeOperationId });
@@ -295,9 +314,9 @@ public partial class MainWindowViewModel : ObservableObject
     private void ToggleDetails() => ShowDetails = !ShowDetails;
 
     private void OnBackendEvent(BackendEvent message) =>
-        Dispatcher.UIThread.Post(() => HandleBackendEvent(message));
+        _dispatch(() => HandleBackendEvent(message));
 
-    internal void HandleBackendEvent(BackendEvent message)
+    private void HandleBackendEvent(BackendEvent message)
     {
         if (message.OperationId != _activeOperationId)
         {
@@ -356,11 +375,9 @@ public partial class MainWindowViewModel : ObservableObject
                 SetupRequired = operationKind == "toolInstall" && !ToolsReady;
                 break;
         }
-
-        RefreshComputedProperties();
     }
 
-    private void OnBackendExited(string? message) => Dispatcher.UIThread.Post(() =>
+    private void OnBackendExited(string? message) => _dispatch(() =>
     {
         _activeOperationId = null;
         ApplyFailure("The download engine stopped unexpectedly.", message ?? "The backend exited.");
@@ -376,7 +393,6 @@ public partial class MainWindowViewModel : ObservableObject
         ShowDetails = false;
         DetailsText = string.Empty;
         StatusText = status;
-        RefreshComputedProperties();
     }
 
     private void FinishOperation()
@@ -401,40 +417,16 @@ public partial class MainWindowViewModel : ObservableObject
             Exception exception => exception.Message,
             _ => error.ToString() ?? string.Empty,
         };
-        RefreshComputedProperties();
     }
 
-    partial void OnUrlChanged(string value) => RefreshComputedProperties();
-    partial void OnOutputFolderChanged(string value) => RefreshComputedProperties();
-    partial void OnAudioOnlyChanged(bool value) => RefreshComputedProperties();
-    partial void OnBusyChanged(bool value) => RefreshComputedProperties();
-    partial void OnCancellableChanged(bool value) => RefreshComputedProperties();
-    partial void OnToolsReadyChanged(bool value) => RefreshComputedProperties();
-    partial void OnSetupRequiredChanged(bool value) => RefreshComputedProperties();
-    partial void OnUpdateAvailableChanged(bool value) => RefreshComputedProperties();
-    partial void OnCompletedChanged(bool value) => RefreshComputedProperties();
-    partial void OnCompletedPathChanged(string? value) => RefreshComputedProperties();
-    partial void OnDetailsTextChanged(string value) => RefreshComputedProperties();
-
-    partial void OnShowDetailsChanged(bool value) => OnPropertyChanged(nameof(DetailsButtonText));
-    partial void OnProgressChanged(double value) => OnPropertyChanged(nameof(IsProgressIndeterminate));
-
-    partial void OnEngineUnavailableChanged(bool value) => OnPropertyChanged(nameof(ShowRestartButton));
-
-    private void RefreshComputedProperties()
+    private async Task IgnoreBackendStopFailureAsync()
     {
-        OnPropertyChanged(nameof(CanEdit));
-        OnPropertyChanged(nameof(CanBrowse));
-        OnPropertyChanged(nameof(CanChangeQuality));
-        OnPropertyChanged(nameof(CanDownload));
-        OnPropertyChanged(nameof(ShowDownloadButton));
-        OnPropertyChanged(nameof(ShowCancelButton));
-        OnPropertyChanged(nameof(ShowInstallPanel));
-        OnPropertyChanged(nameof(ShowUpdatePanel));
-        OnPropertyChanged(nameof(ShowDetailsButton));
-        OnPropertyChanged(nameof(IsProgressIndeterminate));
-        OnPropertyChanged(nameof(HasCompletedFile));
-        OnPropertyChanged(nameof(DetailsButtonText));
-        OnPropertyChanged(nameof(ShowRestartButton));
+        try
+        {
+            await _backend.StopAsync();
+        }
+        catch (Exception)
+        {
+        }
     }
 }

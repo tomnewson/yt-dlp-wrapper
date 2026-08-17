@@ -12,7 +12,6 @@
     <Color x:Key="AppHighlightColor">#BCB382</Color>
     <Color x:Key="AppPanelColor">#2D4739</Color>
     <Color x:Key="AppErrorColor">#F08A84</Color>
-    <Color x:Key="AppAccentColor">#09814A</Color>
     <SolidColorBrush x:Key="AppBackground" Color="{StaticResource AppBackgroundColor}" />
     <SolidColorBrush x:Key="AppText" Color="{StaticResource AppTextColor}" />
     <SolidColorBrush x:Key="AppHighlight" Color="{StaticResource AppHighlightColor}" />

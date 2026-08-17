@@ -44,21 +44,21 @@ public partial class App : Application
 
     private async Task FinishShutdownAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
+        await IgnoreBackendShutdownFailureAsync();
+        await Dispatcher.UIThread.InvokeAsync(() => desktop.Shutdown());
+    }
+
+    private async Task IgnoreBackendShutdownFailureAsync()
+    {
         try
         {
             if (_backend is not null)
             {
-                await Task.Run(async () => await _backend.DisposeAsync());
+                await Task.Run(() => _backend.DisposeAsync().AsTask());
             }
         }
         catch (Exception)
         {
-            // The frontend is already hidden and the backend owns no persistent
-            // user data that requires shutdown to complete successfully.
-        }
-        finally
-        {
-            await Dispatcher.UIThread.InvokeAsync(() => desktop.Shutdown());
         }
     }
 }

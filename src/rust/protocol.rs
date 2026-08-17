@@ -8,7 +8,7 @@ use std::{io, path::PathBuf, sync::Arc};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::sync::mpsc;
 
-pub const PROTOCOL_VERSION: u32 = 1;
+const PROTOCOL_VERSION: u32 = 1;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -189,18 +189,25 @@ async fn handle_request(
             tokio::spawn(Arc::clone(&engine).install_tools(lease, events));
             return;
         }
-        "startDownload" => parse_download(request.params).and_then(|parameters| {
-            let parameters = engine.validate_download(parameters)?;
-            let lease = engine.reserve_operation()?;
-            let operation_id = lease.id.clone();
-            send_result(
-                &sender,
-                &request.request_id,
-                json!({ "operationId": operation_id }),
-            );
-            tokio::spawn(Arc::clone(&engine).download(lease, parameters, events));
-            Ok(Value::Null)
-        }),
+        "startDownload" => {
+            let parameters = parse_download(request.params)
+                .and_then(|parameters| engine.validate_download(parameters));
+            match parameters.and_then(|parameters| {
+                let lease = engine.reserve_operation()?;
+                let operation_id = lease.id.clone();
+                send_result(
+                    &sender,
+                    &request.request_id,
+                    json!({ "operationId": operation_id }),
+                );
+                tokio::spawn(Arc::clone(&engine).download(lease, parameters, events));
+                Ok(())
+            }) {
+                Ok(()) => {}
+                Err(error) => send_error(&sender, &request.request_id, &error),
+            }
+            return;
+        }
         "cancel" => parse_params::<CancelParams>(request.params)
             .map(|params| json!({ "cancelled": engine.cancel(&params.operation_id) })),
         _ => Err(BackendError::InvalidRequest(format!(
@@ -210,7 +217,6 @@ async fn handle_request(
     };
 
     match result {
-        Ok(Value::Null) if request.method == "startDownload" => {}
         Ok(value) => send_result(&sender, &request.request_id, value),
         Err(error) => send_error(&sender, &request.request_id, &error),
     }

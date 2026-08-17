@@ -52,7 +52,7 @@ The backend checks these official release sources at startup:
 - FFmpeg builds for yt-dlp
 - Deno stable releases
 
-It verifies each downloaded archive or executable with the SHA-256 value published by that project. It activates a new platform-specific toolset only after all tools pass a startup test. A failed update does not replace the cached toolset. Existing Windows tool caches from the former Slint release are read through a backward-compatible data migration.
+It verifies each downloaded archive or executable with the SHA-256 value published by that project. It activates a new platform-specific toolset only after all tools pass a startup test. A failed update does not replace the cached toolset.
 
 ## Build
 

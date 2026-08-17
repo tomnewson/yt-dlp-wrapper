@@ -43,7 +43,6 @@ pub struct ToolCheckResult {
     pub can_install_tools: bool,
     pub update_summary: String,
     pub status_text: String,
-    pub warning: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -184,7 +183,6 @@ impl AppEngine {
                             "Updates are available."
                         }
                         .into(),
-                        warning: None,
                     })
                 }
                 Ok(_) => {
@@ -195,7 +193,6 @@ impl AppEngine {
                         can_install_tools: false,
                         update_summary: String::new(),
                         status_text: "Ready. All tools are current.".into(),
-                        warning: None,
                     })
                 }
                 Err(error) if cached.is_some() => {
@@ -206,7 +203,6 @@ impl AppEngine {
                         can_install_tools: false,
                         update_summary: String::new(),
                         status_text: "Could not check for updates. Cached tools are ready.".into(),
-                        warning: Some(error.to_string()),
                     })
                 }
                 Err(error) => Err(BackendError::ToolCheck(error.to_string())),

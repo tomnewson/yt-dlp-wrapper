@@ -37,7 +37,7 @@ jobs:
         run: dotnet restore YtDlpWrapper.slnx
 
       - name: Test platform-neutral .NET projects
-        run: dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers
+        run: dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
 
       - name: Compile future macOS ARM64 frontend
         run: >-

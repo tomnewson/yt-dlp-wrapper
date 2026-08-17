@@ -6,10 +6,9 @@ namespace YtDlpWrapper.Services;
 
 public abstract class PlatformServices(Func<Window?> getWindow) : IPlatformServices
 {
-    protected Func<Window?> GetWindow { get; } = getWindow;
+    private readonly Func<Window?> _getWindow = getWindow;
 
-    public abstract string PlatformId { get; }
-    public abstract string DataRoot { get; }
+    protected abstract string DataRoot { get; }
     protected abstract string BackendFileName { get; }
 
     public static IPlatformServices Create(Func<Window?> getWindow)
@@ -44,24 +43,13 @@ public abstract class PlatformServices(Func<Window?> getWindow) : IPlatformServi
 
     public async Task<string?> PickOutputFolderAsync(string? currentFolder)
     {
-        var storage = GetWindow()?.StorageProvider;
+        var storage = _getWindow()?.StorageProvider;
         if (storage is null)
         {
             return null;
         }
 
-        IStorageFolder? start = null;
-        if (!string.IsNullOrWhiteSpace(currentFolder))
-        {
-            try
-            {
-                start = await storage.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(currentFolder)));
-            }
-            catch (Exception)
-            {
-                // A stale saved folder should not prevent opening the picker.
-            }
-        }
+        var start = await ResolveStartFolderAsync(storage, currentFolder);
 
         var selected = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
@@ -73,6 +61,25 @@ public abstract class PlatformServices(Func<Window?> getWindow) : IPlatformServi
     }
 
     public abstract void RevealFile(string path);
+
+    private static async Task<IStorageFolder?> ResolveStartFolderAsync(
+        IStorageProvider storage,
+        string? currentFolder)
+    {
+        if (string.IsNullOrWhiteSpace(currentFolder))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await storage.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(currentFolder)));
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
 
     protected static void StartDetached(string executable, params string[] arguments)
     {
@@ -88,8 +95,7 @@ public abstract class PlatformServices(Func<Window?> getWindow) : IPlatformServi
 
 internal sealed class WindowsPlatformServices(Func<Window?> getWindow) : PlatformServices(getWindow)
 {
-    public override string PlatformId => "windows-x64";
-    public override string DataRoot => Path.Combine(AppContext.BaseDirectory, "yt-dlp-wrapper-data");
+    protected override string DataRoot => Path.Combine(AppContext.BaseDirectory, "yt-dlp-wrapper-data");
     protected override string BackendFileName => "yt-dlp-wrapper-backend.exe";
 
     public override void RevealFile(string path) => StartDetached("explorer.exe", "/select,", path);
@@ -97,8 +103,7 @@ internal sealed class WindowsPlatformServices(Func<Window?> getWindow) : Platfor
 
 internal sealed class MacOsPlatformServices(Func<Window?> getWindow) : PlatformServices(getWindow)
 {
-    public override string PlatformId => "macos-arm64";
-    public override string DataRoot => Path.Combine(
+    protected override string DataRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "YT-DLP Wrapper");
     protected override string BackendFileName => "yt-dlp-wrapper-backend";
@@ -108,8 +113,7 @@ internal sealed class MacOsPlatformServices(Func<Window?> getWindow) : PlatformS
 
 internal sealed class UnsupportedPlatformServices(Func<Window?> getWindow) : PlatformServices(getWindow)
 {
-    public override string PlatformId => $"{Environment.OSVersion.Platform}-{System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}";
-    public override string DataRoot => Path.Combine(
+    protected override string DataRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "yt-dlp-wrapper");
     protected override string BackendFileName => "yt-dlp-wrapper-backend";

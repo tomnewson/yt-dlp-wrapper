@@ -17,6 +17,6 @@ echo "Checking .NET formatting..."
 dotnet format YtDlpWrapper.slnx --verify-no-changes --no-restore
 
 echo "Building and testing Avalonia..."
-dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers
+dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
 
 echo "Pre-commit checks passed."

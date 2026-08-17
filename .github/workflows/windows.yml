@@ -45,7 +45,7 @@ jobs:
         run: dotnet format YtDlpWrapper.slnx --verify-no-changes --no-restore
 
       - name: Run .NET tests
-        run: dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers
+        run: dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
 
       - name: Build Rust backend
         run: cargo build --release --target x86_64-pc-windows-msvc --locked

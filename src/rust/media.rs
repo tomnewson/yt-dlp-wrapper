@@ -81,8 +81,6 @@ impl H264Encoder {
             crate::platform::WINDOWS_X64 => {
                 &[Self::NvidiaNvenc, Self::IntelQuickSync, Self::AmdAmf]
             }
-            // A future macOS provider can register VideoToolbox here without
-            // changing format selection or the finalization pipeline.
             _ => &[],
         }
     }
@@ -568,9 +566,7 @@ async fn run_yt_dlp(
         .arg("--print")
         .arg(format!("after_move:{FILE_PREFIX}%(filepath)j"));
 
-    if tools.platform == crate::platform::WINDOWS_X64 {
-        command.arg("--windows-filenames");
-    }
+    command.args(crate::platform::yt_dlp_filename_arguments(&tools.platform));
 
     match request.mode {
         DownloadMode::Video => {

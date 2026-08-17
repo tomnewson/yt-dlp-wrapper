@@ -13,7 +13,7 @@ public sealed class BackendClient(IPlatformServices platform) : IBackendClient
     private Process? _process;
     private Task? _stdoutTask;
     private Task? _stderrTask;
-    private bool _stopping;
+    private volatile bool _stopping;
 
     public event Action<BackendEvent>? EventReceived;
     public event Action<string?>? BackendExited;
@@ -36,14 +36,14 @@ public sealed class BackendClient(IPlatformServices platform) : IBackendClient
         }
 
         _stopping = false;
-        _process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+        _process = new Process { StartInfo = startInfo };
         if (!_process.Start())
         {
             throw new InvalidOperationException("The Rust backend could not be started.");
         }
 
         _stdoutTask = ReadStdoutAsync(_process);
-        _stderrTask = DrainStderrAsync(_process);
+        _stderrTask = DiscardStderrAsync(_process);
         _ = ObserveExitAsync(_process);
         return Task.CompletedTask;
     }
@@ -115,50 +115,9 @@ public sealed class BackendClient(IPlatformServices platform) : IBackendClient
         }
 
         _stopping = true;
-        if (!process.HasExited)
-        {
-            try
-            {
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                await SendAsync("shutdown", cancellationToken: timeout.Token);
-                await process.WaitForExitAsync(timeout.Token);
-            }
-            catch (Exception)
-            {
-                if (!process.HasExited)
-                {
-                    try
-                    {
-                        process.Kill(entireProcessTree: true);
-                        using var killTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                        await process.WaitForExitAsync(killTimeout.Token);
-                    }
-                    catch (Exception)
-                    {
-                        // The process may exit between the state check and kill.
-                    }
-                }
-            }
-        }
-
-        try
-        {
-            process.StandardInput.Close();
-        }
-        catch (Exception)
-        {
-            // The backend may have already closed its redirected input stream.
-        }
-
-        var readers = new[] { _stdoutTask, _stderrTask }
-            .Where(task => task is not null)
-            .Cast<Task>()
-            .ToArray();
-        if (readers.Length > 0)
-        {
-            await SuppressFailure(
-                Task.WhenAll(readers).WaitAsync(TimeSpan.FromSeconds(1)));
-        }
+        await StopProcessAsync(process);
+        CloseStandardInput(process);
+        await WaitForReadersAsync();
 
         process.Dispose();
         _process = null;
@@ -186,12 +145,63 @@ public sealed class BackendClient(IPlatformServices platform) : IBackendClient
         }
     }
 
-    private static async Task DrainStderrAsync(Process process)
+    private static async Task DiscardStderrAsync(Process process) =>
+        await process.StandardError.ReadToEndAsync();
+
+    private async Task StopProcessAsync(Process process)
     {
-        while (await process.StandardError.ReadLineAsync() is not null)
+        if (process.HasExited)
         {
-            // Diagnostics are written by Rust to its redacted rolling log. Do not
-            // mirror stderr into the UI process where request data could leak.
+            return;
+        }
+
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await SendAsync("shutdown", cancellationToken: timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (Exception)
+        {
+            await TerminateProcessAsync(process);
+        }
+    }
+
+    private static async Task TerminateProcessAsync(Process process)
+    {
+        try
+        {
+            if (process.HasExited)
+            {
+                return;
+            }
+
+            process.Kill(entireProcessTree: true);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private static void CloseStandardInput(Process process)
+    {
+        try
+        {
+            process.StandardInput.Close();
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async Task WaitForReadersAsync()
+    {
+        var readers = new[] { _stdoutTask, _stderrTask }.OfType<Task>().ToArray();
+        if (readers.Length > 0)
+        {
+            await IgnoreFailureAsync(Task.WhenAll(readers).WaitAsync(TimeSpan.FromSeconds(1)));
         }
     }
 
@@ -283,7 +293,7 @@ public sealed class BackendClient(IPlatformServices platform) : IBackendClient
         }
     }
 
-    private static async Task SuppressFailure(Task task)
+    private static async Task IgnoreFailureAsync(Task task)
     {
         try
         {
@@ -291,7 +301,6 @@ public sealed class BackendClient(IPlatformServices platform) : IBackendClient
         }
         catch (Exception)
         {
-            // Process shutdown races are expected while disposing the app.
         }
     }
 }

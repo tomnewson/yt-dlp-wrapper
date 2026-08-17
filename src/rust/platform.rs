@@ -32,7 +32,6 @@ pub struct ToolPlatform {
     pub deno_asset: &'static str,
     pub deno_checksums: &'static str,
     pub layout: ToolLayout,
-    pub use_windows_filenames: bool,
 }
 
 impl ToolPlatform {
@@ -54,7 +53,6 @@ impl ToolPlatform {
             deno_asset: "deno-x86_64-pc-windows-msvc.zip",
             deno_checksums: "deno-x86_64-pc-windows-msvc.zip.sha256sum",
             layout: ToolLayout::windows_x64(),
-            use_windows_filenames: true,
         }
     }
 }
@@ -69,6 +67,13 @@ pub fn current_platform_id() -> String {
     format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
 }
 
+pub fn yt_dlp_filename_arguments(platform: &str) -> &'static [&'static str] {
+    match platform {
+        WINDOWS_X64 => &["--windows-filenames"],
+        _ => &[],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,6 +84,9 @@ mod tests {
         assert_eq!(platform.id, WINDOWS_X64);
         assert!(platform.layout.yt_dlp.is_relative());
         assert_eq!(platform.layout.ffmpeg, PathBuf::from("ffmpeg.exe"));
-        assert!(platform.use_windows_filenames);
+        assert_eq!(
+            yt_dlp_filename_arguments(platform.id),
+            &["--windows-filenames"]
+        );
     }
 }

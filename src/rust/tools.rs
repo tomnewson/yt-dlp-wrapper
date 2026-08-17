@@ -156,8 +156,14 @@ impl ToolManager {
 
     pub fn load_active(&self) -> Result<Option<ActiveToolset>, ToolError> {
         let path = self.root.join("active-tools.json");
-        let Some(mut active) = config::read_json::<ActiveToolset>(&path)? else {
-            return Ok(None);
+        let mut active = match config::read_json::<ActiveToolset>(&path) {
+            Ok(Some(active)) => active,
+            Ok(None) => return Ok(None),
+            Err(error) if error.kind() == io::ErrorKind::InvalidData => {
+                tracing::warn!(%error, "ignoring an invalid active tool manifest");
+                return Ok(None);
+            }
+            Err(error) => return Err(error.into()),
         };
         if active.platform != self.platform.id {
             return Ok(None);
@@ -684,6 +690,16 @@ fn safe_id(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ignores_invalid_active_tool_manifest() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("active-tools.json"), "{}").unwrap();
+        let manager =
+            ToolManager::new(root.path().to_path_buf(), ToolPlatform::windows_x64()).unwrap();
+
+        assert!(manager.load_active().unwrap().is_none());
+    }
 
     #[test]
     fn parses_common_checksum_formats() {
