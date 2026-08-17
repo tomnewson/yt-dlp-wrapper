@@ -78,20 +78,6 @@ fn replace_file(temporary: &Path, destination: &Path) -> io::Result<()> {
     }
 }
 
-pub fn portable_data_root() -> io::Result<PathBuf> {
-    let executable = std::env::current_exe()?;
-    let parent = executable
-        .parent()
-        .ok_or_else(|| io::Error::other("the executable path has no parent"))?;
-    let root = parent.join("yt-dlp-wrapper-data");
-    fs::create_dir_all(&root)?;
-
-    let probe = root.join(".write-test");
-    fs::write(&probe, b"write test")?;
-    fs::remove_file(probe)?;
-    Ok(root)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

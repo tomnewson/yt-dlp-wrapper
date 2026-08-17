@@ -1,0 +1,23 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="YtDlpWrapper.App"
+             RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+
+  <Application.Resources>
+    <Color x:Key="AppBackgroundColor">#121619</Color>
+    <Color x:Key="AppTextColor">#F4F1E8</Color>
+    <Color x:Key="AppHighlightColor">#BCB382</Color>
+    <Color x:Key="AppPanelColor">#2D4739</Color>
+    <Color x:Key="AppErrorColor">#F08A84</Color>
+    <Color x:Key="AppAccentColor">#09814A</Color>
+    <SolidColorBrush x:Key="AppBackground" Color="{StaticResource AppBackgroundColor}" />
+    <SolidColorBrush x:Key="AppText" Color="{StaticResource AppTextColor}" />
+    <SolidColorBrush x:Key="AppHighlight" Color="{StaticResource AppHighlightColor}" />
+    <SolidColorBrush x:Key="AppPanel" Color="{StaticResource AppPanelColor}" />
+    <SolidColorBrush x:Key="AppError" Color="{StaticResource AppErrorColor}" />
+    <Color x:Key="SystemAccentColor">#09814A</Color>
+  </Application.Resources>
+</Application>

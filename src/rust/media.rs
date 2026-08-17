@@ -76,7 +76,16 @@ enum H264Encoder {
 }
 
 impl H264Encoder {
-    const GPU_CANDIDATES: [Self; 3] = [Self::NvidiaNvenc, Self::IntelQuickSync, Self::AmdAmf];
+    fn gpu_candidates(platform: &str) -> &'static [Self] {
+        match platform {
+            crate::platform::WINDOWS_X64 => {
+                &[Self::NvidiaNvenc, Self::IntelQuickSync, Self::AmdAmf]
+            }
+            // A future macOS provider can register VideoToolbox here without
+            // changing format selection or the finalization pipeline.
+            _ => &[],
+        }
+    }
 
     fn display_name(self) -> &'static str {
         match self {
@@ -208,7 +217,7 @@ async fn run_pipeline(
     );
 
     finalize_media(
-        &tools.ffmpeg(),
+        tools,
         &downloaded,
         &output,
         request.mode,
@@ -541,7 +550,6 @@ async fn run_yt_dlp(
         .arg("--no-config")
         .arg("--no-update")
         .arg("--no-playlist")
-        .arg("--windows-filenames")
         .arg("--newline")
         .arg("--progress")
         .args(["--progress-delta", "0.2"])
@@ -559,6 +567,10 @@ async fn run_yt_dlp(
         ))
         .arg("--print")
         .arg(format!("after_move:{FILE_PREFIX}%(filepath)j"));
+
+    if tools.platform == crate::platform::WINDOWS_X64 {
+        command.arg("--windows-filenames");
+    }
 
     match request.mode {
         DownloadMode::Video => {
@@ -655,7 +667,7 @@ async fn probe_media(
 }
 
 async fn finalize_media(
-    ffmpeg: &Path,
+    tools: &ActiveToolset,
     input: &Path,
     output: &Path,
     mode: DownloadMode,
@@ -663,6 +675,7 @@ async fn finalize_media(
     cancel: &CancellationToken,
     progress: &MediaProgress,
 ) -> Result<(), MediaError> {
+    let ffmpeg = tools.ffmpeg();
     let partial = output.with_file_name(format!(
         "{}.partial.{}",
         output
@@ -733,7 +746,7 @@ async fn finalize_media(
             JobPhase::Inspecting,
             "Checking for a supported GPU encoder…",
         ));
-        detect_gpu_h264_encoder(ffmpeg, cancel)
+        detect_gpu_h264_encoder(&ffmpeg, &tools.platform, cancel)
             .await?
             .unwrap_or(H264Encoder::CpuX264)
     } else {
@@ -761,7 +774,7 @@ async fn finalize_media(
             encoder,
         );
         let command =
-            build_finalization_command(ffmpeg, input, &partial, mode, video, audio, encoder)?;
+            build_finalization_command(&ffmpeg, input, &partial, mode, video, audio, encoder)?;
         match run_ffmpeg_attempt(
             command,
             cancel,
@@ -794,9 +807,10 @@ async fn finalize_media(
 
 async fn detect_gpu_h264_encoder(
     ffmpeg: &Path,
+    platform: &str,
     cancel: &CancellationToken,
 ) -> Result<Option<H264Encoder>, MediaError> {
-    for encoder in H264Encoder::GPU_CANDIDATES {
+    for &encoder in H264Encoder::gpu_candidates(platform) {
         let mut command = Command::new(ffmpeg);
         command.args([
             "-hide_banner",

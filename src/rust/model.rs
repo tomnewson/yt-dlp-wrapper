@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::platform::{ToolLayout, WINDOWS_X64};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DownloadMode {
     Video,
@@ -40,7 +42,8 @@ pub struct DownloadRequest {
     pub output_directory: PathBuf,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum JobPhase {
     Preparing,
     Downloading,
@@ -83,22 +86,67 @@ pub struct ActiveToolset {
     pub ffmpeg_version: String,
     pub deno_version: String,
     pub directory: PathBuf,
+    #[serde(default = "legacy_platform")]
+    pub platform: String,
+    #[serde(default = "legacy_yt_dlp_path")]
+    pub yt_dlp_path: PathBuf,
+    #[serde(default = "legacy_ffmpeg_path")]
+    pub ffmpeg_path: PathBuf,
+    #[serde(default = "legacy_ffprobe_path")]
+    pub ffprobe_path: PathBuf,
+    #[serde(default = "legacy_deno_path")]
+    pub deno_path: PathBuf,
 }
 
 impl ActiveToolset {
     pub fn yt_dlp(&self) -> PathBuf {
-        self.directory.join("yt-dlp.exe")
+        self.directory.join(&self.yt_dlp_path)
     }
 
     pub fn ffmpeg(&self) -> PathBuf {
-        self.directory.join("ffmpeg.exe")
+        self.directory.join(&self.ffmpeg_path)
     }
 
     pub fn ffprobe(&self) -> PathBuf {
-        self.directory.join("ffprobe.exe")
+        self.directory.join(&self.ffprobe_path)
     }
 
     pub fn deno(&self) -> PathBuf {
-        self.directory.join("deno.exe")
+        self.directory.join(&self.deno_path)
+    }
+}
+
+fn legacy_platform() -> String {
+    WINDOWS_X64.into()
+}
+
+fn legacy_yt_dlp_path() -> PathBuf {
+    ToolLayout::windows_x64().yt_dlp
+}
+
+fn legacy_ffmpeg_path() -> PathBuf {
+    ToolLayout::windows_x64().ffmpeg
+}
+
+fn legacy_ffprobe_path() -> PathBuf {
+    ToolLayout::windows_x64().ffprobe
+}
+
+fn legacy_deno_path() -> PathBuf {
+    ToolLayout::windows_x64().deno
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_toolset_json_uses_windows_layout() {
+        let active: ActiveToolset = serde_json::from_str(
+            r#"{"id":"one","yt_dlp_version":"1","ffmpeg_version":"2","deno_version":"3","directory":"tools/one"}"#,
+        )
+        .unwrap();
+        assert_eq!(active.platform, WINDOWS_X64);
+        assert_eq!(active.yt_dlp(), PathBuf::from("tools/one/yt-dlp.exe"));
     }
 }
