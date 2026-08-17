@@ -30,7 +30,7 @@
       <Border Grid.Row="1" IsVisible="{Binding ShowAbout}"
               Background="{DynamicResource AppHighlight}" CornerRadius="8" Padding="14">
         <TextBlock Foreground="#121619" TextWrapping="Wrap"
-                   Text="This wrapper is opinionated and always exports H.264 + AAC MP4s for maximum compatibility with Premiere Pro and similar editors.&#10;&#10;GPLv3 licensed, with an Avalonia interface and a Rust engine managing yt-dlp, FFmpeg, and Deno. Third-party licence files are stored with downloaded tools." />
+                   Text="This wrapper is opinionated and always exports H.264 + AAC MP4s for maximum compatibility with Premiere Pro and similar editors." />
       </Border>
 
       <Border Grid.Row="2" IsVisible="{Binding ShowInstallPanel}"
