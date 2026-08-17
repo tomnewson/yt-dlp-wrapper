@@ -27,9 +27,9 @@ The published application supports Windows 10 and Windows 11 on x64 computers.
 
 ## Use
 
-1. Download and run `yt-dlp-wrapper-win-Setup.exe` from the latest release. A portable ZIP is also available when installation is not appropriate.
+1. Download `YT-DLP-Wrapper-Installer.exe` from the latest release and run it. Use `YT-DLP-Wrapper-Portable.zip` only when you want to run the application without installing it.
 2. Start YT-DLP Wrapper from the Start menu. Keep `yt-dlp-wrapper-backend.exe` beside the frontend when using the portable build.
-3. Approve the first tool download. The application downloads yt-dlp, FFmpeg, ffprobe, and Deno beside the application.
+3. Approve the first tool download. The application downloads yt-dlp, FFmpeg, ffprobe, and Deno into its application data folder.
 4. Paste one HTTP or HTTPS video URL.
 5. Select a video quality, or select audio-only output.
 6. Select an output folder and start the download.
@@ -46,7 +46,7 @@ The sidecar protocol is private to matching application releases. Standard outpu
 
 ## Updates
 
-Installed builds check this repository's GitHub Releases at startup. When an application update is available, the interface can download it and restart into the new version. Release packages are produced with Velopack; delta packages are used when a compatible previous release is available. Development builds and ZIPs created before Velopack was introduced do not attempt to update themselves.
+Installed builds check this repository's GitHub Releases at startup. When an application update is available, the interface can download it and restart into the new version. Release packages are produced with Velopack; delta packages are used when a compatible previous release is available. Development and portable builds do not attempt to update themselves.
 
 Application code and managed tools have separate update lifecycles. Replacing the application does not replace the managed tools or settings.
 
