@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 
@@ -6,6 +7,7 @@ namespace YtDlpWrapper.Services;
 
 public abstract class PlatformServices(Func<Window?> getWindow) : IPlatformServices
 {
+    private static readonly Encoding Utf8 = new UTF8Encoding(false);
     private readonly Func<Window?> _getWindow = getWindow;
 
     protected abstract string DataRoot { get; }
@@ -34,6 +36,9 @@ public abstract class PlatformServices(Func<Window?> getWindow) : IPlatformServi
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardInputEncoding = Utf8,
+            StandardOutputEncoding = Utf8,
+            StandardErrorEncoding = Utf8,
             CreateNoWindow = true,
         };
         info.ArgumentList.Add("--data-root");

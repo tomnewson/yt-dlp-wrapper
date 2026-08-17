@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using YtDlpWrapper.ViewModels;
 
 namespace YtDlpWrapper.Views;
@@ -13,7 +14,7 @@ public partial class MainWindow : Window
         Opened += OnOpened;
     }
 
-    private async void OnOpened(object? sender, EventArgs eventArgs)
+    private void OnOpened(object? sender, EventArgs eventArgs)
     {
         if (_initialized || DataContext is not MainWindowViewModel viewModel)
         {
@@ -21,6 +22,8 @@ public partial class MainWindow : Window
         }
 
         _initialized = true;
-        await viewModel.InitializeAsync();
+        Dispatcher.UIThread.Post(
+            () => _ = viewModel.InitializeAsync(),
+            DispatcherPriority.Loaded);
     }
 }

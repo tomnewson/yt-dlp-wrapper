@@ -97,9 +97,13 @@
 
       <StackPanel Grid.Row="7" Spacing="8">
         <TextBlock Classes="status" Classes.error="{Binding Failed}"
+                   IsVisible="{Binding !HasCompletedFile}"
                    Text="{Binding StatusText}" TextWrapping="Wrap" />
-        <Button IsVisible="{Binding HasCompletedFile}" HorizontalAlignment="Left"
-                Content="Show downloaded file" Command="{Binding OpenFolderCommand}" />
+        <HyperlinkButton IsVisible="{Binding HasCompletedFile}"
+                         HorizontalAlignment="Left"
+                         Content="{Binding StatusText}"
+                         Command="{Binding OpenFolderCommand}"
+                         AutomationProperties.Name="Show downloaded file in file manager" />
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Button IsVisible="{Binding ShowDownloadButton}" Content="Download"
                   Command="{Binding StartDownloadCommand}" IsEnabled="{Binding CanDownload}" />

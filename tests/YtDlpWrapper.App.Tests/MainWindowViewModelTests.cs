@@ -47,8 +47,9 @@ public sealed class MainWindowViewModelTests
     public async Task DownloadCompletionMakesFileRevealAvailable()
     {
         var backend = new FakeBackendClient();
+        var platform = new FakePlatformServices();
         backend.Enqueue("startDownload", Json("""{"operationId":"operation-1"}"""));
-        var viewModel = CreateViewModel(backend);
+        var viewModel = CreateViewModel(backend, platform);
         viewModel.Url = "https://example.com/video";
         viewModel.OutputFolder = "C:/Videos";
         viewModel.ToolsReady = true;
@@ -58,11 +59,15 @@ public sealed class MainWindowViewModelTests
         backend.Raise(new BackendEvent(
             "operation-1",
             "operationCompleted",
-            Json("""{"operationKind":"download","path":"C:/Videos/file.mp4"}""")));
+            Json("""{"operationKind":"download","path":"C:/Videos/café.mp4"}""")));
 
         Assert.True(viewModel.Completed);
         Assert.True(viewModel.HasCompletedFile);
         Assert.Equal(100, viewModel.Progress);
+        Assert.Equal("Saved C:/Videos/café.mp4", viewModel.StatusText);
+
+        viewModel.OpenFolderCommand.Execute(null);
+        Assert.Equal("C:/Videos/café.mp4", platform.RevealedPath);
     }
 
     [Fact]
@@ -123,8 +128,24 @@ public sealed class MainWindowViewModelTests
 
     private static JsonElement Json(string value) => JsonDocument.Parse(value).RootElement.Clone();
 
-    private static MainWindowViewModel CreateViewModel(FakeBackendClient backend) =>
-        new(backend, new FakePlatformServices(), action => action());
+    private static MainWindowViewModel CreateViewModel(
+        FakeBackendClient backend,
+        IPlatformServices? platform = null) =>
+        new(backend, platform ?? new FakePlatformServices(), action => action());
+}
+
+public sealed class PlatformServicesTests
+{
+    [Fact]
+    public void BackendPipesUseBomlessUtf8()
+    {
+        var startInfo = new WindowsPlatformServices(() => null).CreateBackendStartInfo();
+
+        Assert.Equal("utf-8", startInfo.StandardInputEncoding?.WebName);
+        Assert.Equal("utf-8", startInfo.StandardOutputEncoding?.WebName);
+        Assert.Equal("utf-8", startInfo.StandardErrorEncoding?.WebName);
+        Assert.Empty(startInfo.StandardInputEncoding?.GetPreamble() ?? []);
+    }
 }
 
 internal sealed class FakeBackendClient : IBackendClient
@@ -162,7 +183,9 @@ internal sealed class FakeBackendClient : IBackendClient
 
 internal sealed class FakePlatformServices : IPlatformServices
 {
+    public string? RevealedPath { get; private set; }
+
     public ProcessStartInfo CreateBackendStartInfo() => new("backend");
     public Task<string?> PickOutputFolderAsync(string? currentFolder) => Task.FromResult(currentFolder);
-    public void RevealFile(string path) { }
+    public void RevealFile(string path) => RevealedPath = path;
 }
