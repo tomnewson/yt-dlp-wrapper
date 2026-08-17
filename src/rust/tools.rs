@@ -136,7 +136,7 @@ impl ToolManager {
         fs::create_dir_all(root.join("tools"))?;
         fs::create_dir_all(root.join("staging"))?;
         let client = reqwest::Client::builder()
-            .user_agent(concat!("yt-dlp-wrapper/", env!("CARGO_PKG_VERSION")))
+            .user_agent(format!("yt-dlp-wrapper/{}", crate::application_version()))
             .connect_timeout(std::time::Duration::from_secs(8))
             .build()?;
         let release_cache = match config::read_json(&root.join("release-cache.json")) {

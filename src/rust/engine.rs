@@ -117,7 +117,7 @@ impl AppEngine {
                     .to_path_buf()
             });
         Ok(InitializeResult {
-            backend_version: env!("CARGO_PKG_VERSION").into(),
+            backend_version: crate::application_version().into(),
             platform: ToolPlatform::current()
                 .map(|value| value.id.to_owned())
                 .unwrap_or_else(|_| platform::current_platform_id()),

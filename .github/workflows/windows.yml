@@ -15,21 +15,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Validate release version
-        if: startsWith(github.ref, 'refs/tags/v')
-        id: release-version
+      - name: Determine build version
+        id: build-version
         shell: pwsh
         run: |
-          $version = $env:GITHUB_REF_NAME.Substring(1)
-          if ($version -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
-            throw "Tag $env:GITHUB_REF_NAME is not a supported semantic version."
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $version = $env:GITHUB_REF_NAME.Substring(1)
+          } else {
+            $project = [xml](Get-Content src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj)
+            $version = [string]$project.Project.PropertyGroup.Version
           }
-          $project = [xml](Get-Content src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj)
-          $dotnetVersion = [string]$project.Project.PropertyGroup.Version
-          $cargoLine = Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
-          $cargoVersion = $cargoLine.Matches[0].Groups[1].Value
-          if ($dotnetVersion -ne $version -or $cargoVersion -ne $version) {
-            throw "Tag version $version must match .csproj ($dotnetVersion) and Cargo.toml ($cargoVersion)."
+          if ($version -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
+            throw "Build version $version is not a supported semantic version."
           }
           "version=$version" >> $env:GITHUB_OUTPUT
 
@@ -66,6 +63,8 @@ jobs:
         run: dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
 
       - name: Build Rust backend
+        env:
+          YT_DLP_WRAPPER_VERSION: ${{ steps.build-version.outputs.version }}
         run: cargo build --release --target x86_64-pc-windows-msvc --locked
 
       - name: Publish Avalonia frontend
@@ -79,6 +78,7 @@ jobs:
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:PublishTrimmed=false
           -p:DebugType=None
+          -p:Version=${{ steps.build-version.outputs.version }}
           --output dist/yt-dlp-wrapper
 
       - name: Assemble portable application
@@ -113,7 +113,7 @@ jobs:
         run: >-
           vpk pack
           --packId yt-dlp-wrapper
-          --packVersion ${{ steps.release-version.outputs.version }}
+          --packVersion ${{ steps.build-version.outputs.version }}
           --packDir dist/yt-dlp-wrapper
           --mainExe yt-dlp-wrapper.exe
           --packTitle "YT-DLP Wrapper"
@@ -125,7 +125,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
-          $version = '${{ steps.release-version.outputs.version }}'
+          $version = '${{ steps.build-version.outputs.version }}'
           New-Item -ItemType Directory -Force dist/release-assets | Out-Null
           Copy-Item dist/velopack/assets.win.json dist/release-assets/
           Copy-Item dist/velopack/RELEASES dist/release-assets/

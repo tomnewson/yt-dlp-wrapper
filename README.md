@@ -23,7 +23,7 @@ For video conversion, FFmpeg reads the source dimensions and average frame rate 
 
 Portrait video is classified by its shorter dimension, so 1080x1920 uses the 1080p tier.
 
-The published application supports Windows 10 and Windows 11 on x64 computers. macOS packages are not available yet. The shared interface, protocol, data layout, and build checks are structured for a future Apple Silicon release, but macOS tool acquisition, signing, notarization, and runtime QA remain future work.
+The published application supports Windows 10 and Windows 11 on x64 computers.
 
 ## Use
 
@@ -85,7 +85,7 @@ dotnet publish src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj `
 Copy-Item target/x86_64-pc-windows-msvc/release/yt-dlp-wrapper-backend.exe dist/yt-dlp-wrapper/
 ```
 
-Tagged releases require the same semantic version in `Cargo.toml`, the application `.csproj`, and the Git tag. The Windows workflow packages the publish directory with Velopack and uploads the installer, portable package, full update package, optional delta, and `releases.win.json` feed to GitHub Releases. The updater service is platform-neutral; a future macOS ARM64 release can use the same service with Velopack's macOS packaging and signing pipeline.
+For tagged releases, the Git tag is the release version source: tag `v0.1.1` produces frontend, backend, and Velopack packages at version `0.1.1` without editing `Cargo.toml` or the application `.csproj`. Untagged development builds use the `.csproj` version. The Windows workflow uploads the installer, portable package, full update package, optional delta, and `releases.win.json` feed to GitHub Releases.
 
 Enable the repository's pre-commit checks in each new checkout:
 
