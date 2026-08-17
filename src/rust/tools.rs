@@ -1,4 +1,4 @@
-use crate::{config, model::ActiveToolset};
+use crate::{config, model::ActiveToolset, platform::ToolPlatform};
 use fs2::FileExt;
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -21,13 +21,6 @@ const YT_DLP_RELEASE_API: &str =
 const FFMPEG_RELEASE_API: &str =
     "https://api.github.com/repos/yt-dlp/FFmpeg-Builds/releases/latest";
 const DENO_RELEASE_API: &str = "https://api.github.com/repos/denoland/deno/releases/latest";
-
-const YT_DLP_ASSET: &str = "yt-dlp.exe";
-const YT_DLP_CHECKSUMS: &str = "SHA2-256SUMS";
-const FFMPEG_ASSET: &str = "ffmpeg-master-latest-win64-gpl.zip";
-const FFMPEG_CHECKSUMS: &str = "checksums.sha256";
-const DENO_ASSET: &str = "deno-x86_64-pc-windows-msvc.zip";
-const DENO_CHECKSUMS: &str = "deno-x86_64-pc-windows-msvc.zip.sha256sum";
 
 pub type ToolProgress = Arc<dyn Fn(String) + Send + Sync>;
 
@@ -133,12 +126,13 @@ impl UpdatePlan {
 #[derive(Clone)]
 pub struct ToolManager {
     root: PathBuf,
+    platform: ToolPlatform,
     client: reqwest::Client,
     release_cache: Arc<tokio::sync::Mutex<HashMap<String, CachedRelease>>>,
 }
 
 impl ToolManager {
-    pub fn new(root: PathBuf) -> Result<Self, ToolError> {
+    pub fn new(root: PathBuf, platform: ToolPlatform) -> Result<Self, ToolError> {
         fs::create_dir_all(root.join("tools"))?;
         fs::create_dir_all(root.join("staging"))?;
         let client = reqwest::Client::builder()
@@ -154,6 +148,7 @@ impl ToolManager {
         };
         Ok(Self {
             root,
+            platform,
             client,
             release_cache: Arc::new(tokio::sync::Mutex::new(release_cache)),
         })
@@ -161,9 +156,18 @@ impl ToolManager {
 
     pub fn load_active(&self) -> Result<Option<ActiveToolset>, ToolError> {
         let path = self.root.join("active-tools.json");
-        let Some(mut active) = config::read_json::<ActiveToolset>(&path)? else {
-            return Ok(None);
+        let mut active = match config::read_json::<ActiveToolset>(&path) {
+            Ok(Some(active)) => active,
+            Ok(None) => return Ok(None),
+            Err(error) if error.kind() == io::ErrorKind::InvalidData => {
+                tracing::warn!(%error, "ignoring an invalid active tool manifest");
+                return Ok(None);
+            }
+            Err(error) => return Err(error.into()),
         };
+        if active.platform != self.platform.id {
+            return Ok(None);
+        }
         if active.directory.is_relative() {
             active.directory = self.root.join(&active.directory);
         }
@@ -182,19 +186,19 @@ impl ToolManager {
 
         let yt_component = RemoteComponent {
             version: yt.tag_name.clone(),
-            archive: yt.asset(YT_DLP_ASSET)?,
-            checksums: yt.asset(YT_DLP_CHECKSUMS)?,
+            archive: yt.asset(self.platform.yt_dlp_asset)?,
+            checksums: yt.asset(self.platform.yt_dlp_checksums)?,
         };
-        let ffmpeg_archive = ffmpeg.asset(FFMPEG_ASSET)?;
+        let ffmpeg_archive = ffmpeg.asset(self.platform.ffmpeg_asset)?;
         let ffmpeg_component = RemoteComponent {
             version: ffmpeg_archive.updated_at.clone(),
             archive: ffmpeg_archive,
-            checksums: ffmpeg.asset(FFMPEG_CHECKSUMS)?,
+            checksums: ffmpeg.asset(self.platform.ffmpeg_checksums)?,
         };
         let deno_component = RemoteComponent {
             version: deno.tag_name.clone(),
-            archive: deno.asset(DENO_ASSET)?,
-            checksums: deno.asset(DENO_CHECKSUMS)?,
+            archive: deno.asset(self.platform.deno_asset)?,
+            checksums: deno.asset(self.platform.deno_checksums)?,
         };
 
         Ok(UpdatePlan {
@@ -241,13 +245,17 @@ impl ToolManager {
         ensure_not_cancelled(cancel)?;
         if plan.update_yt_dlp {
             progress("Downloading yt-dlp nightly…".into());
-            let destination = stage.join("yt-dlp.exe");
+            let destination = stage.join(&self.platform.layout.yt_dlp);
             self.download(&plan.yt_dlp.archive, &destination, cancel)
                 .await?;
-            self.verify_from_asset(&destination, &plan.yt_dlp.checksums, YT_DLP_ASSET)
-                .await?;
+            self.verify_from_asset(
+                &destination,
+                &plan.yt_dlp.checksums,
+                self.platform.yt_dlp_asset,
+            )
+            .await?;
         } else {
-            copy_active(active, "yt-dlp.exe", stage)?;
+            copy_active(active, &self.platform.layout.yt_dlp, stage)?;
         }
 
         ensure_not_cancelled(cancel)?;
@@ -256,16 +264,17 @@ impl ToolManager {
             let archive = stage.join("ffmpeg.zip");
             self.download(&plan.ffmpeg.archive, &archive, cancel)
                 .await?;
-            self.verify_from_asset(&archive, &plan.ffmpeg.checksums, FFMPEG_ASSET)
+            self.verify_from_asset(&archive, &plan.ffmpeg.checksums, self.platform.ffmpeg_asset)
                 .await?;
             let stage_owned = stage.to_path_buf();
-            tokio::task::spawn_blocking(move || extract_ffmpeg(&archive, &stage_owned))
+            let layout = self.platform.layout.clone();
+            tokio::task::spawn_blocking(move || extract_ffmpeg(&archive, &stage_owned, &layout))
                 .await
                 .map_err(|error| ToolError::Validation(error.to_string()))??;
         } else {
-            copy_active(active, "ffmpeg.exe", stage)?;
-            copy_active(active, "ffprobe.exe", stage)?;
-            copy_optional_active(active, "licences/ffmpeg-license.txt", stage)?;
+            copy_active(active, &self.platform.layout.ffmpeg, stage)?;
+            copy_active(active, &self.platform.layout.ffprobe, stage)?;
+            copy_optional_active(active, Path::new("licences/ffmpeg-license.txt"), stage)?;
         }
 
         ensure_not_cancelled(cancel)?;
@@ -273,15 +282,16 @@ impl ToolManager {
             progress("Downloading Deno…".into());
             let archive = stage.join("deno.zip");
             self.download(&plan.deno.archive, &archive, cancel).await?;
-            self.verify_from_asset(&archive, &plan.deno.checksums, DENO_ASSET)
+            self.verify_from_asset(&archive, &plan.deno.checksums, self.platform.deno_asset)
                 .await?;
             let stage_owned = stage.to_path_buf();
-            tokio::task::spawn_blocking(move || extract_deno(&archive, &stage_owned))
+            let layout = self.platform.layout.clone();
+            tokio::task::spawn_blocking(move || extract_deno(&archive, &stage_owned, &layout))
                 .await
                 .map_err(|error| ToolError::Validation(error.to_string()))??;
         } else {
-            copy_active(active, "deno.exe", stage)?;
-            copy_optional_active(active, "licences/deno-license.txt", stage)?;
+            copy_active(active, &self.platform.layout.deno, stage)?;
+            copy_optional_active(active, Path::new("licences/deno-license.txt"), stage)?;
         }
 
         ensure_not_cancelled(cancel)?;
@@ -290,13 +300,14 @@ impl ToolManager {
         }
 
         progress("Validating downloaded tools…".into());
-        smoke_test(&stage.join("yt-dlp.exe"), &["--version"]).await?;
-        smoke_test(&stage.join("ffmpeg.exe"), &["-version"]).await?;
-        smoke_test(&stage.join("ffprobe.exe"), &["-version"]).await?;
-        smoke_test(&stage.join("deno.exe"), &["--version"]).await?;
+        smoke_test(&stage.join(&self.platform.layout.yt_dlp), &["--version"]).await?;
+        smoke_test(&stage.join(&self.platform.layout.ffmpeg), &["-version"]).await?;
+        smoke_test(&stage.join(&self.platform.layout.ffprobe), &["-version"]).await?;
+        smoke_test(&stage.join(&self.platform.layout.deno), &["--version"]).await?;
 
         let id = format!(
-            "{}-{}-{}",
+            "{}-{}-{}-{}",
+            self.platform.id,
             safe_id(&plan.yt_dlp.version),
             safe_id(&short_version(&plan.ffmpeg.version)),
             safe_id(&plan.deno.version)
@@ -314,6 +325,11 @@ impl ToolManager {
             ffmpeg_version: plan.ffmpeg.version.clone(),
             deno_version: plan.deno.version.clone(),
             directory: relative_directory,
+            platform: self.platform.id.into(),
+            yt_dlp_path: self.platform.layout.yt_dlp.clone(),
+            ffmpeg_path: self.platform.layout.ffmpeg.clone(),
+            ffprobe_path: self.platform.layout.ffprobe.clone(),
+            deno_path: self.platform.layout.deno.clone(),
         };
         config::write_json_atomic(&self.root.join("active-tools.json"), &stored)?;
 
@@ -447,11 +463,11 @@ fn ensure_not_cancelled(cancel: &CancellationToken) -> Result<(), ToolError> {
 
 fn copy_active(
     active: Option<&ActiveToolset>,
-    relative: &str,
+    relative: &Path,
     stage: &Path,
 ) -> Result<(), ToolError> {
-    let active =
-        active.ok_or_else(|| ToolError::Validation(format!("missing cached {relative}")))?;
+    let active = active
+        .ok_or_else(|| ToolError::Validation(format!("missing cached {}", relative.display())))?;
     let source = active.directory.join(relative);
     let destination = stage.join(relative);
     if let Some(parent) = destination.parent() {
@@ -463,7 +479,7 @@ fn copy_active(
 
 fn copy_optional_active(
     active: Option<&ActiveToolset>,
-    relative: &str,
+    relative: &Path,
     stage: &Path,
 ) -> Result<(), ToolError> {
     let Some(active) = active else { return Ok(()) };
@@ -531,7 +547,11 @@ fn sha256_file(path: &Path) -> io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-fn extract_ffmpeg(archive: &Path, stage: &Path) -> Result<(), ToolError> {
+fn extract_ffmpeg(
+    archive: &Path,
+    stage: &Path,
+    layout: &crate::platform::ToolLayout,
+) -> Result<(), ToolError> {
     let file = File::open(archive)?;
     let mut zip = zip::ZipArchive::new(file)?;
     let licence_dir = stage.join("licences");
@@ -548,17 +568,29 @@ fn extract_ffmpeg(archive: &Path, stage: &Path) -> Result<(), ToolError> {
         let Some(name) = enclosed.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        let destination = match name.to_ascii_lowercase().as_str() {
-            "ffmpeg.exe" => {
-                found_ffmpeg = true;
-                Some(stage.join("ffmpeg.exe"))
+        let destination = if name.eq_ignore_ascii_case(
+            layout
+                .ffmpeg
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("ffmpeg"),
+        ) {
+            found_ffmpeg = true;
+            Some(stage.join(&layout.ffmpeg))
+        } else if name.eq_ignore_ascii_case(
+            layout
+                .ffprobe
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("ffprobe"),
+        ) {
+            found_ffprobe = true;
+            Some(stage.join(&layout.ffprobe))
+        } else {
+            match name.to_ascii_lowercase().as_str() {
+                "license.txt" | "copying" => Some(licence_dir.join("ffmpeg-license.txt")),
+                _ => None,
             }
-            "ffprobe.exe" => {
-                found_ffprobe = true;
-                Some(stage.join("ffprobe.exe"))
-            }
-            "license.txt" | "copying" => Some(licence_dir.join("ffmpeg-license.txt")),
-            _ => None,
         };
         if let Some(destination) = destination {
             let mut output = File::create(destination)?;
@@ -574,7 +606,11 @@ fn extract_ffmpeg(archive: &Path, stage: &Path) -> Result<(), ToolError> {
     Ok(())
 }
 
-fn extract_deno(archive: &Path, stage: &Path) -> Result<(), ToolError> {
+fn extract_deno(
+    archive: &Path,
+    stage: &Path,
+    layout: &crate::platform::ToolLayout,
+) -> Result<(), ToolError> {
     let file = File::open(archive)?;
     let mut zip = zip::ZipArchive::new(file)?;
     let mut found = false;
@@ -588,8 +624,14 @@ fn extract_deno(archive: &Path, stage: &Path) -> Result<(), ToolError> {
         let Some(name) = enclosed.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        if name.eq_ignore_ascii_case("deno.exe") {
-            let mut output = File::create(stage.join("deno.exe"))?;
+        if name.eq_ignore_ascii_case(
+            layout
+                .deno
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("deno"),
+        ) {
+            let mut output = File::create(stage.join(&layout.deno))?;
             io::copy(&mut entry, &mut output)?;
             output.flush()?;
             found = true;
@@ -648,6 +690,16 @@ fn safe_id(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ignores_invalid_active_tool_manifest() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("active-tools.json"), "{}").unwrap();
+        let manager =
+            ToolManager::new(root.path().to_path_buf(), ToolPlatform::windows_x64()).unwrap();
+
+        assert!(manager.load_active().unwrap().is_none());
+    }
 
     #[test]
     fn parses_common_checksum_formats() {

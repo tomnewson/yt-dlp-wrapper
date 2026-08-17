@@ -15,14 +15,6 @@ pub enum VideoQuality {
 }
 
 impl VideoQuality {
-    pub fn from_slider_value(value: f32) -> Self {
-        match value.round() as i32 {
-            i32::MIN..=0 => Self::P1080,
-            1 => Self::P1440,
-            _ => Self::Best,
-        }
-    }
-
     pub fn maximum_dimension(self) -> Option<u32> {
         match self {
             Self::P1080 => Some(1080),
@@ -40,7 +32,8 @@ pub struct DownloadRequest {
     pub output_directory: PathBuf,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum JobPhase {
     Preparing,
     Downloading,
@@ -76,29 +69,34 @@ impl ProgressUpdate {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActiveToolset {
     pub id: String,
     pub yt_dlp_version: String,
     pub ffmpeg_version: String,
     pub deno_version: String,
     pub directory: PathBuf,
+    pub platform: String,
+    pub yt_dlp_path: PathBuf,
+    pub ffmpeg_path: PathBuf,
+    pub ffprobe_path: PathBuf,
+    pub deno_path: PathBuf,
 }
 
 impl ActiveToolset {
     pub fn yt_dlp(&self) -> PathBuf {
-        self.directory.join("yt-dlp.exe")
+        self.directory.join(&self.yt_dlp_path)
     }
 
     pub fn ffmpeg(&self) -> PathBuf {
-        self.directory.join("ffmpeg.exe")
+        self.directory.join(&self.ffmpeg_path)
     }
 
     pub fn ffprobe(&self) -> PathBuf {
-        self.directory.join("ffprobe.exe")
+        self.directory.join(&self.ffprobe_path)
     }
 
     pub fn deno(&self) -> PathBuf {
-        self.directory.join("deno.exe")
+        self.directory.join(&self.deno_path)
     }
 }

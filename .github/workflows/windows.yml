@@ -21,28 +21,62 @@ jobs:
           targets: x86_64-pc-windows-msvc
           components: rustfmt, clippy
 
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
       - name: Cache Cargo files
         uses: Swatinem/rust-cache@v2
 
-      - name: Check formatting
+      - name: Restore .NET packages
+        run: dotnet restore YtDlpWrapper.slnx
+
+      - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
       - name: Run Clippy
-        run: cargo clippy --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+        run: cargo clippy --all-targets --target x86_64-pc-windows-msvc --locked -- -D warnings
 
-      - name: Run tests
-        run: cargo test --target x86_64-pc-windows-msvc
+      - name: Run Rust tests
+        run: cargo test --all-targets --target x86_64-pc-windows-msvc --locked
 
-      - name: Build release executable
-        run: cargo build --release --target x86_64-pc-windows-msvc
+      - name: Check .NET formatting
+        run: dotnet format YtDlpWrapper.slnx --verify-no-changes --no-restore
+
+      - name: Run .NET tests
+        run: dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
+
+      - name: Build Rust backend
+        run: cargo build --release --target x86_64-pc-windows-msvc --locked
+
+      - name: Publish Avalonia frontend
+        run: >-
+          dotnet publish src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          --no-restore
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishTrimmed=false
+          -p:DebugType=None
+          --output dist/yt-dlp-wrapper
+
+      - name: Assemble portable application
+        shell: pwsh
+        run: |
+          Remove-Item dist/yt-dlp-wrapper/*.pdb -ErrorAction SilentlyContinue
+          Copy-Item target/x86_64-pc-windows-msvc/release/yt-dlp-wrapper-backend.exe dist/yt-dlp-wrapper/
+          Copy-Item COPYING,README.md,THIRD_PARTY.md dist/yt-dlp-wrapper/
+
+      - name: Smoke-test backend protocol
+        shell: pwsh
+        run: ./scripts/backend-smoke.ps1 dist/yt-dlp-wrapper/yt-dlp-wrapper-backend.exe
 
       - name: Create portable ZIP
         shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path dist/yt-dlp-wrapper
-          Copy-Item target/x86_64-pc-windows-msvc/release/yt-dlp-wrapper.exe dist/yt-dlp-wrapper/
-          Copy-Item COPYING,README.md,THIRD_PARTY.md dist/yt-dlp-wrapper/
-          Compress-Archive -Path dist/yt-dlp-wrapper -DestinationPath dist/yt-dlp-wrapper-windows-x64.zip
+        run: Compress-Archive -Path dist/yt-dlp-wrapper -DestinationPath dist/yt-dlp-wrapper-windows-x64.zip
 
       - name: Upload portable ZIP
         uses: actions/upload-artifact@v4
