@@ -4,15 +4,23 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repositoryRoot "src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj"
 $backend = Join-Path $repositoryRoot "target/x86_64-pc-windows-msvc/debug/yt-dlp-wrapper-backend.exe"
 $appOutput = Join-Path $repositoryRoot "src/dotnet/YtDlpWrapper.App/bin/Debug/net10.0"
+$previousBackendVersion = $env:YT_DLP_WRAPPER_VERSION
 
 Push-Location $repositoryRoot
 try {
+    $versionTag = (& git describe --tags --abbrev=0 --match "v[0-9]*").Trim()
+    if ($LASTEXITCODE -ne 0 -or $versionTag -notmatch '^v(\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?)$') {
+        throw "Could not determine a semantic build version from the repository's Git tags."
+    }
+    $buildVersion = $versionTag.Substring(1)
+    $env:YT_DLP_WRAPPER_VERSION = $buildVersion
+
     & cargo build --target x86_64-pc-windows-msvc
     if ($LASTEXITCODE -ne 0) {
         throw "The Rust backend build failed with exit code $LASTEXITCODE."
     }
 
-    & dotnet build $project
+    & dotnet build $project -p:Version=$buildVersion
     if ($LASTEXITCODE -ne 0) {
         throw "The .NET frontend build failed with exit code $LASTEXITCODE."
     }
@@ -25,5 +33,6 @@ try {
     }
 }
 finally {
+    $env:YT_DLP_WRAPPER_VERSION = $previousBackendVersion
     Pop-Location
 }

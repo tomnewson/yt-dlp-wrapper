@@ -33,19 +33,36 @@
           <TextBlock Foreground="#121619" TextWrapping="Wrap"
                      Text="This wrapper is opinionated and always exports H.264 + AAC MP4s for maximum compatibility with Premiere Pro and similar editors." />
           <TextBlock Foreground="#121619"
-                     Text="{Binding CurrentApplicationVersion, StringFormat='Application version {0}'}" />
+                     Text="{Binding CurrentApplicationVersion, StringFormat='Version {0}'}" />
           <TextBlock Foreground="#121619" TextWrapping="Wrap"
                      Text="{Binding ApplicationUpdateStatus}" />
-          <Button HorizontalAlignment="Left" Content="Check for application updates"
-                  Command="{Binding CheckForApplicationUpdateCommand}"
-                  IsEnabled="{Binding CanCheckForApplicationUpdates}" />
+          <Border HorizontalAlignment="Left" Background="Transparent" Cursor="No">
+            <Button Content="Check for updates"
+                    Cursor="Arrow"
+                    Background="{DynamicResource AppPanel}"
+                    Foreground="{DynamicResource AppText}"
+                    Command="{Binding CheckForApplicationUpdateCommand}"
+                    IsEnabled="{Binding CanCheckForApplicationUpdates}">
+              <Button.Resources>
+                <SolidColorBrush x:Key="ButtonBackground" Color="{StaticResource AppPanelColor}" />
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{StaticResource AppPanelPointerOverColor}" />
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{StaticResource AppPanelPressedColor}" />
+                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="{StaticResource AppDisabledButtonBorderColor}" />
+                <SolidColorBrush x:Key="ButtonForeground" Color="{StaticResource AppTextColor}" />
+                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{StaticResource AppTextColor}" />
+                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{StaticResource AppTextColor}" />
+                <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="{StaticResource AppDisabledButtonForegroundColor}" />
+              </Button.Resources>
+            </Button>
+          </Border>
         </StackPanel>
       </Border>
 
       <Border Grid.Row="2" IsVisible="{Binding ShowApplicationUpdatePanel}"
               Background="{DynamicResource AppPanel}" CornerRadius="8" Padding="14">
         <StackPanel Spacing="8">
-          <TextBlock Text="Application update available" FontWeight="Bold" Foreground="{DynamicResource AppText}" />
+          <TextBlock Text="Update available" FontWeight="Bold" Foreground="{DynamicResource AppText}" />
           <TextBlock Text="{Binding ApplicationUpdateStatus}" TextWrapping="Wrap" Foreground="{DynamicResource AppText}" />
           <ProgressBar Minimum="0" Maximum="100" Value="{Binding ApplicationUpdateProgress}"
                        IsVisible="{Binding ApplicationUpdateBusy}" />

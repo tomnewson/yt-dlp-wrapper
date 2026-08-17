@@ -14,17 +14,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Determine build version
         id: build-version
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF -like 'refs/tags/v*') {
-            $version = $env:GITHUB_REF_NAME.Substring(1)
-          } else {
-            $project = [xml](Get-Content src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj)
-            $version = [string]$project.Project.PropertyGroup.Version
-          }
+          $version = (git describe --tags --abbrev=0 --match "v[0-9]*").Substring(1)
           if ($version -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
             throw "Build version $version is not a supported semantic version."
           }

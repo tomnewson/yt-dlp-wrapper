@@ -202,7 +202,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         ApplicationUpdateBusy = true;
-        ApplicationUpdateStatus = "Checking for application updatesâ€¦";
+        ApplicationUpdateStatus = "Checking for updates...";
         try
         {
             _applicationUpdate = await _applicationUpdater.CheckForUpdatesAsync();
@@ -210,14 +210,14 @@ public partial class MainWindowViewModel : ObservableObject
             ApplicationUpdateVersion = _applicationUpdate?.Version ?? string.Empty;
             ApplicationUpdateStatus = _applicationUpdate is null
                 ? "The application is up to date."
-                : $"Application version {_applicationUpdate.Version} is available.";
+                : $"Version {_applicationUpdate.Version} is available.";
         }
         catch (Exception error)
         {
             _applicationUpdate = null;
             ApplicationUpdateAvailable = false;
             ApplicationUpdateVersion = string.Empty;
-            ApplicationUpdateStatus = $"Could not check for application updates: {error.Message}";
+            ApplicationUpdateStatus = $"Could not check for updates: {error.Message}";
         }
         finally
         {
@@ -235,19 +235,19 @@ public partial class MainWindowViewModel : ObservableObject
 
         ApplicationUpdateBusy = true;
         ApplicationUpdateProgress = 0;
-        ApplicationUpdateStatus = $"Downloading version {_applicationUpdate.Version}â€¦";
+        ApplicationUpdateStatus = $"Downloading version {_applicationUpdate.Version}...";
         try
         {
             await _applicationUpdater.DownloadAsync(
                 _applicationUpdate,
                 value => _dispatch(() => ApplicationUpdateProgress = value));
-            ApplicationUpdateStatus = "Restarting to apply the updateâ€¦";
+            ApplicationUpdateStatus = "Restarting to apply the update...";
             await _backend.StopAsync();
             _applicationUpdater.ApplyAndRestart(_applicationUpdate);
         }
         catch (Exception error)
         {
-            ApplicationUpdateStatus = $"The application update failed: {error.Message}";
+            ApplicationUpdateStatus = $"The update failed: {error.Message}";
             ApplicationUpdateBusy = false;
         }
     }
@@ -256,7 +256,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void DeferApplicationUpdate()
     {
         ApplicationUpdateAvailable = false;
-        ApplicationUpdateStatus = "Application update deferred until the next launch.";
+        ApplicationUpdateStatus = "Update deferred until the next launch.";
     }
 
     [RelayCommand]

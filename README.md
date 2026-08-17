@@ -77,6 +77,8 @@ Build both development executables, place the Rust sidecar beside the frontend, 
 Build the Windows backend and publish the self-contained Avalonia frontend:
 
 ```powershell
+$buildVersion = (git describe --tags --abbrev=0 --match "v[0-9]*").Substring(1)
+$env:YT_DLP_WRAPPER_VERSION = $buildVersion
 cargo build --release --target x86_64-pc-windows-msvc --locked
 dotnet publish src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj `
   --configuration Release --runtime win-x64 --self-contained true `
@@ -85,7 +87,7 @@ dotnet publish src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj `
 Copy-Item target/x86_64-pc-windows-msvc/release/yt-dlp-wrapper-backend.exe dist/yt-dlp-wrapper/
 ```
 
-For tagged releases, the Git tag is the release version source: tag `v0.1.1` produces frontend, backend, and Velopack packages at version `0.1.1` without editing `Cargo.toml` or the application `.csproj`. Untagged development builds use the `.csproj` version. The Windows workflow uploads the installer, portable package, full update package, optional delta, and `releases.win.json` feed to GitHub Releases.
+Git tags are the application version source: builds use the most recent reachable `v*` tag, and tag `v0.1.2` produces frontend, backend, and Velopack packages at version `0.1.2`. The Windows workflow uploads the installer, portable package, full update package, optional delta, and `releases.win.json` feed to GitHub Releases.
 
 Enable the repository's pre-commit checks in each new checkout:
 
