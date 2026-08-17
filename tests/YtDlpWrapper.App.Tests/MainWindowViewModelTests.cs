@@ -12,7 +12,7 @@ public sealed class MainWindowViewModelTests
     public async Task InitializeLoadsFolderAndReadyState()
     {
         var backend = new FakeBackendClient();
-        backend.Enqueue("initialize", Json("""{"backendVersion":"0.1.0","outputFolder":"C:/Videos"}"""));
+        backend.Enqueue("initialize", InitializeResult());
         backend.Enqueue("checkTools", Json(
             """{"state":"ready","toolsReady":true,"canInstallTools":false,"updateSummary":"","statusText":"Ready. All tools are current."}"""));
         var viewModel = CreateViewModel(backend);
@@ -29,7 +29,7 @@ public sealed class MainWindowViewModelTests
     public async Task UpdateStateRequiresDeferralBeforeDownload()
     {
         var backend = new FakeBackendClient();
-        backend.Enqueue("initialize", Json("""{"backendVersion":"0.1.0","outputFolder":"C:/Videos"}"""));
+        backend.Enqueue("initialize", InitializeResult());
         backend.Enqueue("checkTools", Json(
             """{"state":"updateAvailable","toolsReady":true,"canInstallTools":true,"updateSummary":"yt-dlp 1","statusText":"Updates are available."}"""));
         var viewModel = CreateViewModel(backend);
@@ -101,7 +101,7 @@ public sealed class MainWindowViewModelTests
         await viewModel.InitializeAsync();
         Assert.True(viewModel.ShowRestartButton);
 
-        backend.Enqueue("initialize", Json("""{"backendVersion":"0.1.0","outputFolder":"C:/Videos"}"""));
+        backend.Enqueue("initialize", InitializeResult());
         backend.Enqueue("checkTools", Json(
             """{"state":"ready","toolsReady":true,"canInstallTools":false,"updateSummary":"","statusText":"Ready."}"""));
         await viewModel.RestartBackendCommand.ExecuteAsync(null);
@@ -126,12 +126,42 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Backend failed.", viewModel.DetailsText);
     }
 
+    [Fact]
+    public async Task ApplicationUpdateDownloadsStopsBackendAndApplies()
+    {
+        var backend = new FakeBackendClient();
+        var updater = new FakeApplicationUpdater
+        {
+            NextUpdate = new ApplicationUpdate("0.2.0", new object()),
+        };
+        backend.Enqueue("initialize", InitializeResult());
+        backend.Enqueue("checkTools", Json(
+            """{"state":"ready","toolsReady":true,"canInstallTools":false,"updateSummary":"","statusText":"Ready."}"""));
+        var viewModel = CreateViewModel(backend, updater: updater);
+
+        await viewModel.InitializeAsync();
+
+        Assert.True(viewModel.ShowApplicationUpdatePanel);
+        Assert.Equal("0.2.0", viewModel.ApplicationUpdateVersion);
+
+        await viewModel.InstallApplicationUpdateCommand.ExecuteAsync(null);
+
+        Assert.True(updater.Downloaded);
+        Assert.True(updater.Applied);
+        Assert.Equal(1, backend.StopCount);
+        Assert.Equal(100, viewModel.ApplicationUpdateProgress);
+    }
+
     private static JsonElement Json(string value) => JsonDocument.Parse(value).RootElement.Clone();
+
+    private static JsonElement InitializeResult() => Json(
+        $$"""{"backendVersion":"{{ApplicationVersion.Current}}","outputFolder":"C:/Videos"}""");
 
     private static MainWindowViewModel CreateViewModel(
         FakeBackendClient backend,
-        IPlatformServices? platform = null) =>
-        new(backend, platform ?? new FakePlatformServices(), action => action());
+        IPlatformServices? platform = null,
+        IApplicationUpdater? updater = null) =>
+        new(backend, platform ?? new FakePlatformServices(), action => action(), updater);
 }
 
 public sealed class PlatformServicesTests
@@ -146,6 +176,17 @@ public sealed class PlatformServicesTests
         Assert.Equal("utf-8", startInfo.StandardErrorEncoding?.WebName);
         Assert.Empty(startInfo.StandardInputEncoding?.GetPreamble() ?? []);
     }
+
+    [Fact]
+    public void BackendUsesPersistentApplicationDataRoot()
+    {
+        var paths = new ApplicationPaths("C:/Users/test/AppData/Local/YT-DLP Wrapper");
+        var startInfo = new WindowsPlatformServices(() => null, paths).CreateBackendStartInfo();
+
+        Assert.Equal("--data-root", startInfo.ArgumentList[0]);
+        Assert.Equal(paths.DataRoot, startInfo.ArgumentList[1]);
+    }
+
 }
 
 internal sealed class FakeBackendClient : IBackendClient
@@ -154,6 +195,7 @@ internal sealed class FakeBackendClient : IBackendClient
 
     public event Action<BackendEvent>? EventReceived;
     public event Action<string?>? BackendExited;
+    public int StopCount { get; private set; }
 
     public void Enqueue(string method, JsonElement response)
     {
@@ -173,12 +215,40 @@ internal sealed class FakeBackendClient : IBackendClient
         CancellationToken cancellationToken = default) =>
         Task.FromResult(_responses[method].Dequeue());
 
-    public Task StopAsync() => Task.CompletedTask;
+    public Task StopAsync()
+    {
+        StopCount++;
+        return Task.CompletedTask;
+    }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     public void Raise(BackendEvent message) => EventReceived?.Invoke(message);
     public void Exit(string? message = null) => BackendExited?.Invoke(message);
+}
+
+internal sealed class FakeApplicationUpdater : IApplicationUpdater
+{
+    public ApplicationUpdate? NextUpdate { get; init; }
+    public bool Downloaded { get; private set; }
+    public bool Applied { get; private set; }
+    public bool CanUpdate => true;
+    public string CurrentVersion => ApplicationVersion.Current;
+
+    public Task<ApplicationUpdate?> CheckForUpdatesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(NextUpdate);
+
+    public Task DownloadAsync(
+        ApplicationUpdate update,
+        Action<int>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        Downloaded = true;
+        progress?.Invoke(100);
+        return Task.CompletedTask;
+    }
+
+    public void ApplyAndRestart(ApplicationUpdate update) => Applied = true;
 }
 
 internal sealed class FakePlatformServices : IPlatformServices

@@ -10,9 +10,11 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private readonly IBackendClient _backend;
     private readonly IPlatformServices _platform;
+    private readonly IApplicationUpdater _applicationUpdater;
     private readonly Action<Action> _dispatch;
     private string? _activeOperationId;
     private bool _toolsReadyBeforeOperation;
+    private ApplicationUpdate? _applicationUpdate;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanDownload))]
@@ -38,7 +40,8 @@ public partial class MainWindowViewModel : ObservableObject
         nameof(ShowDownloadButton),
         nameof(ShowCancelButton),
         nameof(IsProgressIndeterminate),
-        nameof(ShowRestartButton))]
+        nameof(ShowRestartButton),
+        nameof(CanInstallApplicationUpdate))]
     private bool _busy = true;
 
     [ObservableProperty]
@@ -96,28 +99,56 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowRestartButton))]
     private bool _engineUnavailable;
 
-    public MainWindowViewModel(IBackendClient backend, IPlatformServices platform)
-        : this(backend, platform, action => Dispatcher.UIThread.Post(action))
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowApplicationUpdatePanel), nameof(CanInstallApplicationUpdate))]
+    private bool _applicationUpdateAvailable;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(
+        nameof(CanCheckForApplicationUpdates),
+        nameof(CanInstallApplicationUpdate),
+        nameof(CanEdit),
+        nameof(CanBrowse),
+        nameof(CanChangeQuality),
+        nameof(CanDownload))]
+    private bool _applicationUpdateBusy;
+
+    [ObservableProperty]
+    private double _applicationUpdateProgress;
+
+    [ObservableProperty]
+    private string _applicationUpdateStatus = string.Empty;
+
+    [ObservableProperty]
+    private string _applicationUpdateVersion = string.Empty;
+
+    public MainWindowViewModel(
+        IBackendClient backend,
+        IPlatformServices platform,
+        IApplicationUpdater applicationUpdater)
+        : this(backend, platform, action => Dispatcher.UIThread.Post(action), applicationUpdater)
     {
     }
 
     internal MainWindowViewModel(
         IBackendClient backend,
         IPlatformServices platform,
-        Action<Action> dispatch)
+        Action<Action> dispatch,
+        IApplicationUpdater? applicationUpdater = null)
     {
         _backend = backend;
         _platform = platform;
+        _applicationUpdater = applicationUpdater ?? UnavailableApplicationUpdater.Instance;
         _dispatch = dispatch;
         _backend.EventReceived += OnBackendEvent;
         _backend.BackendExited += OnBackendExited;
     }
 
-    public bool CanEdit => ToolsReady && !Busy;
-    public bool CanBrowse => !Busy;
+    public bool CanEdit => ToolsReady && !Busy && !ApplicationUpdateBusy;
+    public bool CanBrowse => !Busy && !ApplicationUpdateBusy;
     public bool CanChangeQuality => CanEdit && !AudioOnly;
     public bool CanDownload =>
-        ToolsReady && !Busy && !UpdateAvailable &&
+        ToolsReady && !Busy && !ApplicationUpdateBusy && !UpdateAvailable &&
         !string.IsNullOrWhiteSpace(Url) && !string.IsNullOrWhiteSpace(OutputFolder);
     public bool ShowDownloadButton => !Busy;
     public bool ShowCancelButton => Busy && Cancellable;
@@ -128,6 +159,12 @@ public partial class MainWindowViewModel : ObservableObject
     public bool HasCompletedFile => Completed && !string.IsNullOrWhiteSpace(CompletedPath);
     public string DetailsButtonText => ShowDetails ? "Hide details" : "Show details";
     public bool ShowRestartButton => EngineUnavailable && !Busy;
+    public bool ShowApplicationUpdatePanel => ApplicationUpdateAvailable;
+    public bool CanCheckForApplicationUpdates =>
+        _applicationUpdater.CanUpdate && !ApplicationUpdateBusy;
+    public bool CanInstallApplicationUpdate =>
+        ApplicationUpdateAvailable && !ApplicationUpdateBusy && !Busy;
+    public string CurrentApplicationVersion => _applicationUpdater.CurrentVersion;
 
     public async Task InitializeAsync()
     {
@@ -138,7 +175,7 @@ public partial class MainWindowViewModel : ObservableObject
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var initialized = await _backend.SendAsync("initialize", cancellationToken: timeout.Token);
             var backendVersion = initialized.GetProperty("backendVersion").GetString();
-            var frontendVersion = typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3);
+            var frontendVersion = ApplicationVersion.Current;
             if (backendVersion != frontendVersion)
             {
                 throw new InvalidDataException(
@@ -147,12 +184,79 @@ public partial class MainWindowViewModel : ObservableObject
             EngineUnavailable = false;
             OutputFolder = initialized.GetProperty("outputFolder").GetString() ?? string.Empty;
             await CheckToolsAsync();
+            await CheckForApplicationUpdateAsync();
         }
         catch (Exception error)
         {
             ApplyFailure("The download engine could not be started.", error);
             EngineUnavailable = true;
         }
+    }
+
+    [RelayCommand]
+    private async Task CheckForApplicationUpdateAsync()
+    {
+        if (!_applicationUpdater.CanUpdate || ApplicationUpdateBusy)
+        {
+            return;
+        }
+
+        ApplicationUpdateBusy = true;
+        ApplicationUpdateStatus = "Checking for application updatesâ€¦";
+        try
+        {
+            _applicationUpdate = await _applicationUpdater.CheckForUpdatesAsync();
+            ApplicationUpdateAvailable = _applicationUpdate is not null;
+            ApplicationUpdateVersion = _applicationUpdate?.Version ?? string.Empty;
+            ApplicationUpdateStatus = _applicationUpdate is null
+                ? "The application is up to date."
+                : $"Application version {_applicationUpdate.Version} is available.";
+        }
+        catch (Exception error)
+        {
+            _applicationUpdate = null;
+            ApplicationUpdateAvailable = false;
+            ApplicationUpdateVersion = string.Empty;
+            ApplicationUpdateStatus = $"Could not check for application updates: {error.Message}";
+        }
+        finally
+        {
+            ApplicationUpdateBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallApplicationUpdateAsync()
+    {
+        if (_applicationUpdate is null || ApplicationUpdateBusy)
+        {
+            return;
+        }
+
+        ApplicationUpdateBusy = true;
+        ApplicationUpdateProgress = 0;
+        ApplicationUpdateStatus = $"Downloading version {_applicationUpdate.Version}â€¦";
+        try
+        {
+            await _applicationUpdater.DownloadAsync(
+                _applicationUpdate,
+                value => _dispatch(() => ApplicationUpdateProgress = value));
+            ApplicationUpdateStatus = "Restarting to apply the updateâ€¦";
+            await _backend.StopAsync();
+            _applicationUpdater.ApplyAndRestart(_applicationUpdate);
+        }
+        catch (Exception error)
+        {
+            ApplicationUpdateStatus = $"The application update failed: {error.Message}";
+            ApplicationUpdateBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private void DeferApplicationUpdate()
+    {
+        ApplicationUpdateAvailable = false;
+        ApplicationUpdateStatus = "Application update deferred until the next launch.";
     }
 
     [RelayCommand]

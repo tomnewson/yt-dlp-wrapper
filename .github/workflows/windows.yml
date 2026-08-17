@@ -15,6 +15,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: release-version
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          if ($version -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
+            throw "Tag $env:GITHUB_REF_NAME is not a supported semantic version."
+          }
+          $project = [xml](Get-Content src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj)
+          $dotnetVersion = [string]$project.Project.PropertyGroup.Version
+          $cargoLine = Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
+          $cargoVersion = $cargoLine.Matches[0].Groups[1].Value
+          if ($dotnetVersion -ne $version -or $cargoVersion -ne $version) {
+            throw "Tag version $version must match .csproj ($dotnetVersion) and Cargo.toml ($cargoVersion)."
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -78,11 +96,58 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path dist/yt-dlp-wrapper -DestinationPath dist/yt-dlp-wrapper-windows-x64.zip
 
+      - name: Install Velopack CLI
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: dotnet tool install --global vpk --version 1.2.0
+
+      - name: Download previous Velopack release for delta generation
+        if: startsWith(github.ref, 'refs/tags/v')
+        continue-on-error: true
+        run: >-
+          vpk download github
+          --repoUrl https://github.com/${{ github.repository }}
+          --outputDir dist/velopack
+
+      - name: Build installer and update packages
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: >-
+          vpk pack
+          --packId yt-dlp-wrapper
+          --packVersion ${{ steps.release-version.outputs.version }}
+          --packDir dist/yt-dlp-wrapper
+          --mainExe yt-dlp-wrapper.exe
+          --packTitle "YT-DLP Wrapper"
+          --packAuthors "Tom Newson"
+          --runtime win-x64
+          --outputDir dist/velopack
+
+      - name: Stage release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $version = '${{ steps.release-version.outputs.version }}'
+          New-Item -ItemType Directory -Force dist/release-assets | Out-Null
+          Copy-Item dist/velopack/assets.win.json dist/release-assets/
+          Copy-Item dist/velopack/RELEASES dist/release-assets/
+          Copy-Item dist/velopack/releases.win.json dist/release-assets/
+          Copy-Item "dist/velopack/yt-dlp-wrapper-$version-full.nupkg" dist/release-assets/
+          Copy-Item "dist/velopack/yt-dlp-wrapper-$version-delta.nupkg" dist/release-assets/ -ErrorAction SilentlyContinue
+          Copy-Item dist/velopack/*-Setup.exe dist/release-assets/
+          Copy-Item dist/velopack/*-Portable.zip dist/release-assets/
+
       - name: Upload portable ZIP
         uses: actions/upload-artifact@v4
         with:
           name: yt-dlp-wrapper-windows-x64
           path: dist/yt-dlp-wrapper-windows-x64.zip
+          if-no-files-found: error
+
+      - name: Upload release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: yt-dlp-wrapper-release-assets
+          path: dist/release-assets/*
           if-no-files-found: error
 
   publish-release:
@@ -92,18 +157,18 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download portable ZIP
+      - name: Download installer and update packages
         uses: actions/download-artifact@v4
         with:
-          name: yt-dlp-wrapper-windows-x64
-          path: dist
+          name: yt-dlp-wrapper-release-assets
+          path: dist/release-assets
 
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/yt-dlp-wrapper-windows-x64.zip --clobber --repo "$GITHUB_REPOSITORY"
+            gh release upload "$GITHUB_REF_NAME" dist/release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$GITHUB_REF_NAME" dist/yt-dlp-wrapper-windows-x64.zip --generate-notes --verify-tag --repo "$GITHUB_REPOSITORY"
+            gh release create "$GITHUB_REF_NAME" dist/release-assets/* --generate-notes --verify-tag --repo "$GITHUB_REPOSITORY"
           fi

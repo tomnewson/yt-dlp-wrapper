@@ -21,8 +21,9 @@ public partial class App : Application
         {
             MainWindow? window = null;
             var platform = PlatformServices.Create(() => window);
+            var updater = ApplicationUpdater.Create();
             _backend = new BackendClient(platform);
-            var viewModel = new MainWindowViewModel(_backend, platform);
+            var viewModel = new MainWindowViewModel(_backend, platform, updater);
             window = new MainWindow { DataContext = viewModel };
             desktop.MainWindow = window;
             window.Closing += (_, eventArgs) =>

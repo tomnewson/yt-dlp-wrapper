@@ -27,16 +27,16 @@ The published application supports Windows 10 and Windows 11 on x64 computers. m
 
 ## Use
 
-1. Extract the release ZIP to a writable folder.
-2. Start `yt-dlp-wrapper.exe`. Keep `yt-dlp-wrapper-backend.exe` beside it.
+1. Download and run `yt-dlp-wrapper-win-Setup.exe` from the latest release. A portable ZIP is also available when installation is not appropriate.
+2. Start YT-DLP Wrapper from the Start menu. Keep `yt-dlp-wrapper-backend.exe` beside the frontend when using the portable build.
 3. Approve the first tool download. The application downloads yt-dlp, FFmpeg, ffprobe, and Deno beside the application.
 4. Paste one HTTP or HTTPS video URL.
 5. Select a video quality, or select audio-only output.
 6. Select an output folder and start the download.
 
-The first setup needs an internet connection and several hundred MiB of free space. Later runs can use cached tools without an internet connection. The complete application folder can be moved after the application is closed.
+The first setup needs an internet connection and several hundred MiB of free space. Later runs can use cached tools without an internet connection.
 
-Do not place the application in `Program Files` or another read-only folder. On Windows, the application stores tools and settings in `yt-dlp-wrapper-data` beside the executables.
+On Windows, tools, settings, and logs are stored in `%LOCALAPPDATA%\YT-DLP Wrapper`, independently of the installed application files. Updating or reinstalling the application therefore preserves the tool cache and configuration.
 
 ## Architecture
 
@@ -45,6 +45,10 @@ The Avalonia process owns the window and operating-system integration. It starts
 The sidecar protocol is private to matching application releases. Standard output is reserved for protocol messages, and submitted video URLs are not written to normal application logs.
 
 ## Updates
+
+Installed builds check this repository's GitHub Releases at startup. When an application update is available, the interface can download it and restart into the new version. Release packages are produced with Velopack; delta packages are used when a compatible previous release is available. Development builds and ZIPs created before Velopack was introduced do not attempt to update themselves.
+
+Application code and managed tools have separate update lifecycles. Replacing the application does not replace the managed tools or settings.
 
 The backend checks these official release sources at startup:
 
@@ -64,6 +68,12 @@ cargo test --all-targets --locked
 dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers
 ```
 
+Build both development executables, place the Rust sidecar beside the frontend, and start the app:
+
+```powershell
+./scripts/run-dev.ps1
+```
+
 Build the Windows backend and publish the self-contained Avalonia frontend:
 
 ```powershell
@@ -74,6 +84,8 @@ dotnet publish src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj `
   -p:PublishTrimmed=false --output dist/yt-dlp-wrapper
 Copy-Item target/x86_64-pc-windows-msvc/release/yt-dlp-wrapper-backend.exe dist/yt-dlp-wrapper/
 ```
+
+Tagged releases require the same semantic version in `Cargo.toml`, the application `.csproj`, and the Git tag. The Windows workflow packages the publish directory with Velopack and uploads the installer, portable package, full update package, optional delta, and `releases.win.json` feed to GitHub Releases. The updater service is platform-neutral; a future macOS ARM64 release can use the same service with Velopack's macOS packaging and signing pipeline.
 
 Enable the repository's pre-commit checks in each new checkout:
 
@@ -97,4 +109,4 @@ Only download media when you have permission to do so. The user is responsible f
 
 This program is free software under GNU GPL version 3 only. See `COPYING`.
 
-Avalonia, .NET, and the .NET Community Toolkit use their respective permissive licences. Downloaded tools have their own licences. Available third-party licence files are stored in each managed tool directory; see `THIRD_PARTY.md` for the project-level summary.
+Avalonia, .NET, the .NET Community Toolkit, and Velopack use their respective permissive licences. Downloaded tools have their own licences. Available third-party licence files are stored in each managed tool directory; see `THIRD_PARTY.md` for the project-level summary.

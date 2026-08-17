@@ -5,27 +5,30 @@ using Avalonia.Platform.Storage;
 
 namespace YtDlpWrapper.Services;
 
-public abstract class PlatformServices(Func<Window?> getWindow) : IPlatformServices
+public abstract class PlatformServices(Func<Window?> getWindow, ApplicationPaths paths) : IPlatformServices
 {
     private static readonly Encoding Utf8 = new UTF8Encoding(false);
     private readonly Func<Window?> _getWindow = getWindow;
 
-    protected abstract string DataRoot { get; }
+    protected string DataRoot => paths.DataRoot;
     protected abstract string BackendFileName { get; }
 
-    public static IPlatformServices Create(Func<Window?> getWindow)
+    public static IPlatformServices Create(
+        Func<Window?> getWindow,
+        ApplicationPaths? paths = null)
     {
+        paths ??= ApplicationPaths.Create();
         if (OperatingSystem.IsWindows())
         {
-            return new WindowsPlatformServices(getWindow);
+            return new WindowsPlatformServices(getWindow, paths);
         }
 
         if (OperatingSystem.IsMacOS())
         {
-            return new MacOsPlatformServices(getWindow);
+            return new MacOsPlatformServices(getWindow, paths);
         }
 
-        return new UnsupportedPlatformServices(getWindow);
+        return new UnsupportedPlatformServices(getWindow, paths);
     }
 
     public virtual ProcessStartInfo CreateBackendStartInfo()
@@ -98,29 +101,37 @@ public abstract class PlatformServices(Func<Window?> getWindow) : IPlatformServi
     }
 }
 
-internal sealed class WindowsPlatformServices(Func<Window?> getWindow) : PlatformServices(getWindow)
+internal sealed class WindowsPlatformServices : PlatformServices
 {
-    protected override string DataRoot => Path.Combine(AppContext.BaseDirectory, "yt-dlp-wrapper-data");
+    public WindowsPlatformServices(Func<Window?> getWindow, ApplicationPaths? paths = null)
+        : base(getWindow, paths ?? ApplicationPaths.Create())
+    {
+    }
+
     protected override string BackendFileName => "yt-dlp-wrapper-backend.exe";
 
     public override void RevealFile(string path) => StartDetached("explorer.exe", "/select,", path);
 }
 
-internal sealed class MacOsPlatformServices(Func<Window?> getWindow) : PlatformServices(getWindow)
+internal sealed class MacOsPlatformServices : PlatformServices
 {
-    protected override string DataRoot => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "YT-DLP Wrapper");
+    public MacOsPlatformServices(Func<Window?> getWindow, ApplicationPaths? paths = null)
+        : base(getWindow, paths ?? ApplicationPaths.Create())
+    {
+    }
+
     protected override string BackendFileName => "yt-dlp-wrapper-backend";
 
     public override void RevealFile(string path) => StartDetached("/usr/bin/open", "-R", path);
 }
 
-internal sealed class UnsupportedPlatformServices(Func<Window?> getWindow) : PlatformServices(getWindow)
+internal sealed class UnsupportedPlatformServices : PlatformServices
 {
-    protected override string DataRoot => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "yt-dlp-wrapper");
+    public UnsupportedPlatformServices(Func<Window?> getWindow, ApplicationPaths? paths = null)
+        : base(getWindow, paths ?? ApplicationPaths.Create())
+    {
+    }
+
     protected override string BackendFileName => "yt-dlp-wrapper-backend";
 
     public override void RevealFile(string path) => throw new PlatformNotSupportedException();

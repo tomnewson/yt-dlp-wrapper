@@ -4,7 +4,7 @@
         x:Class="YtDlpWrapper.Views.MainWindow"
         x:DataType="viewModels:MainWindowViewModel"
         Title="YT-DLP Wrapper"
-        Width="560" Height="580"
+        Width="560" Height="640"
         MinWidth="520" MinHeight="480"
         Background="{DynamicResource AppBackground}">
   <Window.Styles>
@@ -16,7 +16,7 @@
     </Style>
   </Window.Styles>
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-    <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" RowSpacing="16">
+    <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" RowSpacing="16">
       <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
         <TextBlock Text="YT-DLP Wrapper"
                    FontSize="24" FontWeight="Bold"
@@ -29,11 +29,36 @@
 
       <Border Grid.Row="1" IsVisible="{Binding ShowAbout}"
               Background="{DynamicResource AppHighlight}" CornerRadius="8" Padding="14">
-        <TextBlock Foreground="#121619" TextWrapping="Wrap"
-                   Text="This wrapper is opinionated and always exports H.264 + AAC MP4s for maximum compatibility with Premiere Pro and similar editors." />
+        <StackPanel Spacing="8">
+          <TextBlock Foreground="#121619" TextWrapping="Wrap"
+                     Text="This wrapper is opinionated and always exports H.264 + AAC MP4s for maximum compatibility with Premiere Pro and similar editors." />
+          <TextBlock Foreground="#121619"
+                     Text="{Binding CurrentApplicationVersion, StringFormat='Application version {0}'}" />
+          <TextBlock Foreground="#121619" TextWrapping="Wrap"
+                     Text="{Binding ApplicationUpdateStatus}" />
+          <Button HorizontalAlignment="Left" Content="Check for application updates"
+                  Command="{Binding CheckForApplicationUpdateCommand}"
+                  IsEnabled="{Binding CanCheckForApplicationUpdates}" />
+        </StackPanel>
       </Border>
 
-      <Border Grid.Row="2" IsVisible="{Binding ShowInstallPanel}"
+      <Border Grid.Row="2" IsVisible="{Binding ShowApplicationUpdatePanel}"
+              Background="{DynamicResource AppPanel}" CornerRadius="8" Padding="14">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Application update available" FontWeight="Bold" Foreground="{DynamicResource AppText}" />
+          <TextBlock Text="{Binding ApplicationUpdateStatus}" TextWrapping="Wrap" Foreground="{DynamicResource AppText}" />
+          <ProgressBar Minimum="0" Maximum="100" Value="{Binding ApplicationUpdateProgress}"
+                       IsVisible="{Binding ApplicationUpdateBusy}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Download and restart" Command="{Binding InstallApplicationUpdateCommand}"
+                    IsEnabled="{Binding CanInstallApplicationUpdate}" />
+            <Button Content="Later" Command="{Binding DeferApplicationUpdateCommand}"
+                    IsEnabled="{Binding !ApplicationUpdateBusy}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Row="3" IsVisible="{Binding ShowInstallPanel}"
               Background="{DynamicResource AppPanel}" CornerRadius="8" Padding="14">
         <StackPanel Spacing="8">
           <TextBlock Text="Required tools are not installed." FontWeight="Bold" Foreground="{DynamicResource AppText}" />
@@ -47,7 +72,7 @@
         </StackPanel>
       </Border>
 
-      <Border Grid.Row="2" IsVisible="{Binding ShowUpdatePanel}"
+      <Border Grid.Row="3" IsVisible="{Binding ShowUpdatePanel}"
               Background="{DynamicResource AppPanel}" CornerRadius="8" Padding="14">
         <StackPanel Spacing="8">
           <TextBlock Text="Tool updates are available." FontWeight="Bold" Foreground="{DynamicResource AppText}" />
@@ -60,14 +85,14 @@
         </StackPanel>
       </Border>
 
-      <StackPanel Grid.Row="3" Spacing="6">
+      <StackPanel Grid.Row="4" Spacing="6">
         <TextBlock Text="Video URL" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" />
         <TextBox Text="{Binding Url}" PlaceholderText="https://…"
                  IsEnabled="{Binding CanEdit}"
                  AutomationProperties.Name="Video URL" />
       </StackPanel>
 
-      <StackPanel Grid.Row="4" Spacing="5">
+      <StackPanel Grid.Row="5" Spacing="5">
         <TextBlock Text="Video quality" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" />
         <Slider Minimum="0" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True"
                 Value="{Binding VideoQuality}" IsEnabled="{Binding CanChangeQuality}"
@@ -81,7 +106,7 @@
                   IsEnabled="{Binding CanEdit}" />
       </StackPanel>
 
-      <StackPanel Grid.Row="5" Spacing="6" VerticalAlignment="Top">
+      <StackPanel Grid.Row="6" Spacing="6" VerticalAlignment="Top">
         <TextBlock Text="Output folder" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" />
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
           <TextBox Text="{Binding OutputFolder}" IsReadOnly="True"
@@ -91,11 +116,11 @@
         </Grid>
       </StackPanel>
 
-      <ProgressBar Grid.Row="6" Minimum="0" Maximum="100"
+      <ProgressBar Grid.Row="7" Minimum="0" Maximum="100"
                    Value="{Binding Progress}"
                    IsIndeterminate="{Binding IsProgressIndeterminate}" />
 
-      <StackPanel Grid.Row="7" Spacing="8">
+      <StackPanel Grid.Row="8" Spacing="8">
         <TextBlock Classes="status" Classes.error="{Binding Failed}"
                    IsVisible="{Binding !HasCompletedFile}"
                    Text="{Binding StatusText}" TextWrapping="Wrap" />
@@ -116,7 +141,7 @@
         </StackPanel>
       </StackPanel>
 
-      <TextBox Grid.Row="8" IsVisible="{Binding ShowDetails}"
+      <TextBox Grid.Row="9" IsVisible="{Binding ShowDetails}"
                Text="{Binding DetailsText}" IsReadOnly="True"
                AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72"
                AutomationProperties.Name="Error details" />

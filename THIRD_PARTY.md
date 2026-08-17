@@ -10,5 +10,6 @@ yt-dlp-wrapper downloads and runs separate third-party programs.
 | Avalonia | https://avaloniaui.net | MIT |
 | .NET runtime | https://dotnet.microsoft.com | MIT; additional notices are distributed by Microsoft |
 | .NET Community Toolkit | https://github.com/CommunityToolkit/dotnet | MIT |
+| Velopack | https://github.com/velopack/velopack | MIT |
 
 The upstream release pages and downloaded licence files are the authoritative sources. Review them before each public release.
