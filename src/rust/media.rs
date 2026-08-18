@@ -72,6 +72,7 @@ enum H264Encoder {
     NvidiaNvenc,
     IntelQuickSync,
     AmdAmf,
+    AppleVideoToolbox,
     CpuX264,
 }
 
@@ -81,6 +82,7 @@ impl H264Encoder {
             crate::platform::WINDOWS_X64 => {
                 &[Self::NvidiaNvenc, Self::IntelQuickSync, Self::AmdAmf]
             }
+            crate::platform::MACOS_ARM64 => &[Self::AppleVideoToolbox],
             _ => &[],
         }
     }
@@ -90,6 +92,7 @@ impl H264Encoder {
             Self::NvidiaNvenc => "NVIDIA GPU",
             Self::IntelQuickSync => "Intel GPU",
             Self::AmdAmf => "AMD GPU",
+            Self::AppleVideoToolbox => "Apple GPU",
             Self::CpuX264 => "CPU",
         }
     }
@@ -1018,6 +1021,19 @@ fn configure_h264_encoder(
             ]);
             configure_bitrate_limits(command, bitrate, true);
         }
+        H264Encoder::AppleVideoToolbox => {
+            command.args([
+                "-c:v",
+                "h264_videotoolbox",
+                "-profile:v",
+                "high",
+                "-pix_fmt",
+                "yuv420p",
+                "-allow_sw",
+                "0",
+            ]);
+            configure_bitrate_limits(command, bitrate, true);
+        }
         H264Encoder::CpuX264 => {
             command.args([
                 "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -1414,6 +1430,7 @@ mod tests {
             (H264Encoder::NvidiaNvenc, "h264_nvenc"),
             (H264Encoder::IntelQuickSync, "h264_qsv"),
             (H264Encoder::AmdAmf, "h264_amf"),
+            (H264Encoder::AppleVideoToolbox, "h264_videotoolbox"),
             (H264Encoder::CpuX264, "libx264"),
         ];
 
