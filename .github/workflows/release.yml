@@ -1,4 +1,4 @@
-name: Windows
+name: Build and release
 
 on:
   push:
@@ -103,6 +103,7 @@ jobs:
         run: >-
           vpk download github
           --repoUrl https://github.com/${{ github.repository }}
+          --token ${{ github.token }}
           --outputDir dist/velopack
 
       - name: Build installer and update packages
@@ -141,13 +142,137 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
-          name: yt-dlp-wrapper-release-assets
+          name: yt-dlp-wrapper-windows-release-assets
+          path: dist/release-assets/*
+          if-no-files-found: error
+
+  build-macos-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine build version
+        id: build-version
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Build version $version is not a supported semantic version." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+          components: rustfmt, clippy
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Cache Cargo files
+        uses: Swatinem/rust-cache@v2
+
+      - name: Verify Apple Silicon runner
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Restore .NET packages
+        run: dotnet restore YtDlpWrapper.slnx
+
+      - name: Check and test Rust
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets --target aarch64-apple-darwin --locked -- -D warnings
+          cargo test --all-targets --target aarch64-apple-darwin --locked
+
+      - name: Check and test .NET
+        run: |
+          dotnet format YtDlpWrapper.slnx --verify-no-changes --no-restore
+          dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
+
+      - name: Build macOS ARM64 application bundle
+        env:
+          YT_DLP_WRAPPER_VERSION: ${{ steps.build-version.outputs.version }}
+        run: ./scripts/build-macos-arm64.sh
+
+      - name: Verify native executables and backend protocol
+        run: |
+          app='dist/macos-arm64/YT-DLP Wrapper.app/Contents/MacOS'
+          test "$(lipo -archs "$app/yt-dlp-wrapper")" = "arm64"
+          test "$(lipo -archs "$app/yt-dlp-wrapper-backend")" = "arm64"
+          ./scripts/backend-smoke.sh "$app/yt-dlp-wrapper-backend"
+          codesign --verify --deep --strict 'dist/macos-arm64/YT-DLP Wrapper.app'
+
+      - name: Install Velopack CLI
+        run: dotnet tool install --global vpk --version 1.2.0
+
+      - name: Download previous Velopack release for delta generation
+        continue-on-error: true
+        run: >-
+          vpk download github
+          --repoUrl https://github.com/${{ github.repository }}
+          --token ${{ github.token }}
+          --channel osx
+          --outputDir dist/velopack
+
+      - name: Build macOS installer and update packages
+        run: >-
+          vpk pack
+          --packId yt-dlp-wrapper-macos
+          --packVersion ${{ steps.build-version.outputs.version }}
+          --packDir "dist/macos-arm64/YT-DLP Wrapper.app"
+          --mainExe yt-dlp-wrapper
+          --packTitle "YT-DLP Wrapper"
+          --packAuthors "Tom Newson"
+          --runtime osx-arm64
+          --channel osx
+          --signAppIdentity -
+          --outputDir dist/velopack
+
+      - name: Verify packaged macOS application
+        run: |
+          portable=$(find dist/velopack -maxdepth 1 -type f -name '*-Portable.zip' -print -quit)
+          test -n "$portable"
+          verification_dir=$(mktemp -d)
+          ditto -x -k "$portable" "$verification_dir"
+          packaged_app="$verification_dir/YT-DLP Wrapper.app"
+          codesign --verify --deep --strict "$packaged_app"
+          test "$(lipo -archs "$packaged_app/Contents/MacOS/yt-dlp-wrapper")" = "arm64"
+          test "$(lipo -archs "$packaged_app/Contents/MacOS/yt-dlp-wrapper-backend")" = "arm64"
+          test -x "$packaged_app/Contents/MacOS/UpdateMac"
+          test -f "$packaged_app/Contents/MacOS/sq.version"
+
+      - name: Stage macOS release assets
+        run: |
+          version='${{ steps.build-version.outputs.version }}'
+          mkdir -p dist/release-assets
+          cp dist/velopack/releases.osx.json dist/release-assets/
+          cp "dist/velopack/yt-dlp-wrapper-macos-$version-osx-full.nupkg" dist/release-assets/
+          if [[ -f "dist/velopack/yt-dlp-wrapper-macos-$version-osx-delta.nupkg" ]]; then
+            cp "dist/velopack/yt-dlp-wrapper-macos-$version-osx-delta.nupkg" dist/release-assets/
+          fi
+          installer=$(find dist/velopack -maxdepth 1 -type f -name '*.pkg' -print -quit)
+          portable=$(find dist/velopack -maxdepth 1 -type f -name '*-Portable.zip' -print -quit)
+          test -n "$installer"
+          test -n "$portable"
+          cp "$installer" dist/release-assets/YT-DLP-Wrapper-macOS-arm64-Installer.pkg
+          cp "$portable" dist/release-assets/YT-DLP-Wrapper-macOS-arm64-Portable.zip
+
+      - name: Upload macOS release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: yt-dlp-wrapper-macos-release-assets
           path: dist/release-assets/*
           if-no-files-found: error
 
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: test-and-build
+    needs: [test-and-build, build-macos-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -155,7 +280,8 @@ jobs:
       - name: Download installer and update packages
         uses: actions/download-artifact@v4
         with:
-          name: yt-dlp-wrapper-release-assets
+          pattern: yt-dlp-wrapper-*-release-assets
+          merge-multiple: true
           path: dist/release-assets
 
       - name: Create or update GitHub release
@@ -163,11 +289,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           download_base="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
-          download_notes=$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s' \
+          download_notes=$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s' \
             '<!-- user-downloads -->' \
             '## Download for Windows' \
             "**Most users:** [Download the Windows installer]($download_base/YT-DLP-Wrapper-Installer.exe) and run it." \
             "**Portable use:** [Download the portable ZIP]($download_base/YT-DLP-Wrapper-Portable.zip), extract it, and run the app without installing it." \
+            '## Download for Apple Silicon macOS' \
+            "**Most users:** [Download the macOS installer]($download_base/YT-DLP-Wrapper-macOS-arm64-Installer.pkg) and run it." \
+            "**Portable use:** [Download the portable ZIP]($download_base/YT-DLP-Wrapper-macOS-arm64-Portable.zip), extract it, and move the app to Applications." \
             'The other files are used by automatic updates or contain the source code.')
 
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

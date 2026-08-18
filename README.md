@@ -27,7 +27,7 @@ The application supports Windows 10 and Windows 11 on x64 computers and macOS 14
 
 ## Use
 
-1. On Windows, download `YT-DLP-Wrapper-Installer.exe` from the latest release and run it. Use `YT-DLP-Wrapper-Portable.zip` only for portable use. On Apple Silicon macOS, build or download `YT-DLP-Wrapper-macOS-arm64.zip`, extract it, and move `YT-DLP Wrapper.app` to Applications.
+1. On Windows, download `YT-DLP-Wrapper-Installer.exe` from the latest release and run it. On Apple Silicon macOS, download `YT-DLP-Wrapper-macOS-arm64-Installer.pkg` and run it. Portable ZIPs are also provided for both platforms.
 2. Start YT-DLP Wrapper. Portable builds must keep the Rust backend beside the frontend; the supplied packages already have the correct layout.
 3. Approve the first tool download. The application downloads yt-dlp, FFmpeg, ffprobe, and Deno into its application data folder.
 4. Paste one HTTP or HTTPS video URL.
@@ -109,7 +109,18 @@ To exercise a clean first-run download, checksum verification, and tool startup 
   'dist/macos-arm64/YT-DLP Wrapper.app/Contents/MacOS/yt-dlp-wrapper-backend'
 ```
 
-Git tags are the application version source: builds use the most recent reachable `v*` tag, and tag `v0.1.2` produces frontend and backend binaries at version `0.1.2`. The Windows workflow uploads the installer, portable package, full update package, optional delta, and `releases.win.json` feed to GitHub Releases. The macOS workflow builds and uploads the arm64 application ZIP as a workflow artifact.
+Git tags are the application version source: builds use the most recent reachable `v*` tag, and tag `v0.1.2` produces frontend and backend binaries at version `0.1.2`. Pushing a version tag runs coordinated Windows and Apple Silicon macOS builds. The release is published only after both succeed, with an installer, portable package, full update package, optional delta, and platform update feed for each operating system.
+
+Create a release by tagging the commit to publish and pushing the tag:
+
+```bash
+git tag v0.1.4
+git push origin v0.1.4
+```
+
+The tag must be a semantic version beginning with `v`. GitHub Actions creates or updates the matching GitHub Release and adds the user-facing downloads plus `releases.win.json` and `releases.osx.json` for automatic updates. The first macOS Velopack release is a full update baseline; later releases can generate delta packages from it.
+
+The macOS packages are currently ad-hoc signed rather than Developer ID signed and notarized. A first-time user may need to approve the app or installer in System Settings under Privacy & Security. Once installed, the Velopack-enabled app can replace itself during subsequent updates; its tools, settings, and logs remain in `~/Library/Application Support/YT-DLP Wrapper`.
 
 Enable the repository's pre-commit checks in each new checkout:
 
