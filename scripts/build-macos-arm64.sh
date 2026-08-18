@@ -10,9 +10,26 @@ publish_output="$dist_root/publish"
 app_bundle="$dist_root/YT-DLP Wrapper.app"
 app_macos="$app_bundle/Contents/MacOS"
 app_resources="$app_bundle/Contents/Resources"
+icon_source="$repository_root/assets/icons/app-icon.icon"
+icon_output="$dist_root/icon-assets"
+icon_plist="$dist_root/icon-info.plist"
 
 if [[ $(uname -s) != Darwin || $(uname -m) != arm64 ]]; then
     echo "This build script must run natively on an Apple Silicon Mac." >&2
+    exit 1
+fi
+if [[ ! -d "$icon_source" ]]; then
+    echo "Layered macOS icon source is missing: $icon_source" >&2
+    exit 1
+fi
+if ! xcrun --find actool >/dev/null 2>&1; then
+    echo "Xcode 26 or newer is required to compile the layered macOS app icon." >&2
+    exit 1
+fi
+xcode_version=$(xcodebuild -version | awk 'NR == 1 { print $2 }')
+xcode_major=${xcode_version%%.*}
+if [[ ! "$xcode_major" =~ ^[0-9]+$ ]] || (( xcode_major < 26 )); then
+    echo "Xcode 26 or newer is required; active version is $xcode_version." >&2
     exit 1
 fi
 
@@ -28,7 +45,7 @@ fi
 bundle_version=${build_version%%[-+]*}
 
 rm -rf "$dist_root"
-mkdir -p "$publish_output" "$app_macos" "$app_resources"
+mkdir -p "$publish_output" "$app_macos" "$app_resources" "$icon_output"
 
 export YT_DLP_WRAPPER_VERSION=$build_version
 cargo build \
@@ -56,6 +73,27 @@ sed \
     -e "s/@VERSION@/$build_version/g" \
     -e "s/@BUNDLE_VERSION@/$bundle_version/g" \
     "$repository_root/assets/macos/Info.plist" >"$app_bundle/Contents/Info.plist"
+
+xcrun actool \
+    "$icon_source" \
+    --compile "$icon_output" \
+    --output-format human-readable-text \
+    --notices \
+    --warnings \
+    --output-partial-info-plist "$icon_plist" \
+    --app-icon app-icon \
+    --include-all-app-icons \
+    --compress-pngs \
+    --enable-on-demand-resources NO \
+    --development-region en \
+    --target-device mac \
+    --minimum-deployment-target 14.0 \
+    --platform macosx
+cp -R "$icon_output/." "$app_resources/"
+/usr/libexec/PlistBuddy \
+    -c "Merge \"$icon_plist\"" \
+    "$app_bundle/Contents/Info.plist"
+
 cp "$repository_root/COPYING" "$repository_root/README.md" "$repository_root/THIRD_PARTY.md" "$app_resources/"
 
 codesign --force --deep --sign - "$app_bundle"

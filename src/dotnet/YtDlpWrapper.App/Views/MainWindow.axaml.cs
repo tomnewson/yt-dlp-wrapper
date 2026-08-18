@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using YtDlpWrapper.ViewModels;
 
@@ -11,6 +12,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        if (OperatingSystem.IsWindows())
+        {
+            Icon = new WindowIcon(
+                AssetLoader.Open(new Uri("avares://yt-dlp-wrapper/Assets/app-icon.ico")));
+        }
         Opened += OnOpened;
     }
 

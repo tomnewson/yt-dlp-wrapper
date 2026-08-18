@@ -10,9 +10,11 @@
     <RuntimeIdentifiers>win-x64;osx-arm64</RuntimeIdentifiers>
     <PublishTrimmed>false</PublishTrimmed>
     <ApplicationManifest Condition="$([MSBuild]::IsOSPlatform('Windows'))">../../../assets/app.manifest</ApplicationManifest>
+    <ApplicationIcon>../../../assets/icons/app-icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
+    <AvaloniaResource Include="../../../assets/icons/app-icon.ico" Link="Assets/app-icon.ico" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />

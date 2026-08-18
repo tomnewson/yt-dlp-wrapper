@@ -93,14 +93,22 @@ dotnet publish src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj `
 Copy-Item target/x86_64-pc-windows-msvc/release/yt-dlp-wrapper-backend.exe dist/yt-dlp-wrapper/
 ```
 
-Build an ad-hoc-signed, self-contained macOS arm64 app bundle and portable ZIP on an Apple Silicon Mac:
+Build an ad-hoc-signed, self-contained macOS arm64 app bundle and portable ZIP on an Apple Silicon Mac. The full Xcode 26 toolchain must be active so the layered Icon Composer source can be compiled into the bundle:
 
 ```bash
 ./scripts/build-macos-arm64.sh
 open 'dist/macos-arm64/YT-DLP Wrapper.app'
 ```
 
-The resulting frontend and Rust backend are native arm64 Mach-O executables. The ZIP preserves the standard `.app` bundle layout and executable permissions. Distribution outside local development still requires an Apple Developer ID signature and notarization to avoid Gatekeeper warnings.
+The resulting frontend and Rust backend are native arm64 Mach-O executables. The ZIP preserves the standard `.app` bundle layout, executable permissions, and the adaptive macOS app icon. Distribution outside local development still requires an Apple Developer ID signature and notarization to avoid Gatekeeper warnings.
+
+The Windows executable, application window, and Velopack installer use `assets/icons/app-icon.ico`. Regenerate it only from the approved transparent Icon Composer PNG—not from the raw SVG layers:
+
+```bash
+./scripts/build-windows-icon.py \
+  assets/icons/app-icon-iOS-Default-1024@1x-transparent.png \
+  assets/icons/app-icon.ico
+```
 
 To exercise a clean first-run download, checksum verification, and tool startup without changing your real application data, run:
 

@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test-and-build:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
         with:
@@ -31,6 +31,13 @@ jobs:
 
       - name: Verify Apple Silicon runner
         run: test "$(uname -m)" = "arm64"
+
+      - name: Select Xcode 26.5
+        run: |
+          xcode_path=/Applications/Xcode_26.5.app/Contents/Developer
+          test -d "$xcode_path"
+          echo "DEVELOPER_DIR=$xcode_path" >> "$GITHUB_ENV"
+          DEVELOPER_DIR="$xcode_path" xcodebuild -version
 
       - name: Test Rust backend and engine
         run: cargo test --all-targets --locked
@@ -55,6 +62,7 @@ jobs:
           test "$(lipo -archs "$app/yt-dlp-wrapper")" = "arm64"
           test "$(lipo -archs "$app/yt-dlp-wrapper-backend")" = "arm64"
           ./scripts/backend-smoke.sh "$app/yt-dlp-wrapper-backend"
+          test -f 'dist/macos-arm64/YT-DLP Wrapper.app/Contents/Resources/Assets.car'
           codesign --verify --deep --strict 'dist/macos-arm64/YT-DLP Wrapper.app'
 
       - name: Upload macOS ARM64 application
