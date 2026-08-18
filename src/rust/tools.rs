@@ -18,8 +18,6 @@ use uuid::Uuid;
 
 const YT_DLP_RELEASE_API: &str =
     "https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest";
-const FFMPEG_RELEASE_API: &str =
-    "https://api.github.com/repos/yt-dlp/FFmpeg-Builds/releases/latest";
 const DENO_RELEASE_API: &str = "https://api.github.com/repos/denoland/deno/releases/latest";
 
 pub type ToolProgress = Arc<dyn Fn(String) + Send + Sync>;
@@ -50,6 +48,8 @@ struct GithubAsset {
     browser_download_url: String,
     size: u64,
     updated_at: String,
+    #[serde(default)]
+    digest: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,7 +78,8 @@ impl GithubRelease {
 struct RemoteComponent {
     version: String,
     archive: GithubAsset,
-    checksums: GithubAsset,
+    companion: Option<GithubAsset>,
+    checksums: Option<GithubAsset>,
 }
 
 #[derive(Debug, Clone)]
@@ -100,6 +101,10 @@ impl UpdatePlan {
         [
             (self.update_yt_dlp, self.yt_dlp.archive.size),
             (self.update_ffmpeg, self.ffmpeg.archive.size),
+            (
+                self.update_ffmpeg,
+                self.ffmpeg.companion.as_ref().map_or(0, |asset| asset.size),
+            ),
             (self.update_deno, self.deno.archive.size),
         ]
         .into_iter()
@@ -180,25 +185,36 @@ impl ToolManager {
     ) -> Result<UpdatePlan, ToolError> {
         let (yt, ffmpeg, deno) = tokio::try_join!(
             self.release(YT_DLP_RELEASE_API),
-            self.release(FFMPEG_RELEASE_API),
+            self.release(self.platform.ffmpeg_release_api),
             self.release(DENO_RELEASE_API),
         )?;
 
         let yt_component = RemoteComponent {
             version: yt.tag_name.clone(),
             archive: yt.asset(self.platform.yt_dlp_asset)?,
-            checksums: yt.asset(self.platform.yt_dlp_checksums)?,
+            companion: None,
+            checksums: Some(yt.asset(self.platform.yt_dlp_checksums)?),
         };
         let ffmpeg_archive = ffmpeg.asset(self.platform.ffmpeg_asset)?;
         let ffmpeg_component = RemoteComponent {
             version: ffmpeg_archive.updated_at.clone(),
             archive: ffmpeg_archive,
-            checksums: ffmpeg.asset(self.platform.ffmpeg_checksums)?,
+            companion: self
+                .platform
+                .ffprobe_asset
+                .map(|name| ffmpeg.asset(name))
+                .transpose()?,
+            checksums: self
+                .platform
+                .ffmpeg_checksums
+                .map(|name| ffmpeg.asset(name))
+                .transpose()?,
         };
         let deno_component = RemoteComponent {
             version: deno.tag_name.clone(),
             archive: deno.asset(self.platform.deno_asset)?,
-            checksums: deno.asset(self.platform.deno_checksums)?,
+            companion: None,
+            checksums: Some(deno.asset(self.platform.deno_checksums)?),
         };
 
         Ok(UpdatePlan {
@@ -250,6 +266,7 @@ impl ToolManager {
                 .await?;
             self.verify_from_asset(
                 &destination,
+                &plan.yt_dlp.archive,
                 &plan.yt_dlp.checksums,
                 self.platform.yt_dlp_asset,
             )
@@ -261,16 +278,46 @@ impl ToolManager {
         ensure_not_cancelled(cancel)?;
         if plan.update_ffmpeg {
             progress("Downloading FFmpeg and ffprobe…".into());
-            let archive = stage.join("ffmpeg.zip");
-            self.download(&plan.ffmpeg.archive, &archive, cancel)
+            if let Some(ffprobe) = &plan.ffmpeg.companion {
+                let ffmpeg_path = stage.join(&self.platform.layout.ffmpeg);
+                self.download(&plan.ffmpeg.archive, &ffmpeg_path, cancel)
+                    .await?;
+                self.verify_from_asset(
+                    &ffmpeg_path,
+                    &plan.ffmpeg.archive,
+                    &plan.ffmpeg.checksums,
+                    self.platform.ffmpeg_asset,
+                )
                 .await?;
-            self.verify_from_asset(&archive, &plan.ffmpeg.checksums, self.platform.ffmpeg_asset)
+
+                let ffprobe_path = stage.join(&self.platform.layout.ffprobe);
+                self.download(ffprobe, &ffprobe_path, cancel).await?;
+                self.verify_from_asset(
+                    &ffprobe_path,
+                    ffprobe,
+                    &plan.ffmpeg.checksums,
+                    self.platform.ffprobe_asset.unwrap_or("ffprobe"),
+                )
                 .await?;
-            let stage_owned = stage.to_path_buf();
-            let layout = self.platform.layout.clone();
-            tokio::task::spawn_blocking(move || extract_ffmpeg(&archive, &stage_owned, &layout))
+            } else {
+                let archive = stage.join("ffmpeg.zip");
+                self.download(&plan.ffmpeg.archive, &archive, cancel)
+                    .await?;
+                self.verify_from_asset(
+                    &archive,
+                    &plan.ffmpeg.archive,
+                    &plan.ffmpeg.checksums,
+                    self.platform.ffmpeg_asset,
+                )
+                .await?;
+                let stage_owned = stage.to_path_buf();
+                let layout = self.platform.layout.clone();
+                tokio::task::spawn_blocking(move || {
+                    extract_ffmpeg(&archive, &stage_owned, &layout)
+                })
                 .await
                 .map_err(|error| ToolError::Validation(error.to_string()))??;
+            }
         } else {
             copy_active(active, &self.platform.layout.ffmpeg, stage)?;
             copy_active(active, &self.platform.layout.ffprobe, stage)?;
@@ -282,8 +329,13 @@ impl ToolManager {
             progress("Downloading Deno…".into());
             let archive = stage.join("deno.zip");
             self.download(&plan.deno.archive, &archive, cancel).await?;
-            self.verify_from_asset(&archive, &plan.deno.checksums, self.platform.deno_asset)
-                .await?;
+            self.verify_from_asset(
+                &archive,
+                &plan.deno.archive,
+                &plan.deno.checksums,
+                self.platform.deno_asset,
+            )
+            .await?;
             let stage_owned = stage.to_path_buf();
             let layout = self.platform.layout.clone();
             tokio::task::spawn_blocking(move || extract_deno(&archive, &stage_owned, &layout))
@@ -297,6 +349,15 @@ impl ToolManager {
         ensure_not_cancelled(cancel)?;
         for temporary in [stage.join("ffmpeg.zip"), stage.join("deno.zip")] {
             let _ = fs::remove_file(temporary);
+        }
+
+        for executable in [
+            stage.join(&self.platform.layout.yt_dlp),
+            stage.join(&self.platform.layout.ffmpeg),
+            stage.join(&self.platform.layout.ffprobe),
+            stage.join(&self.platform.layout.deno),
+        ] {
+            make_executable(&executable)?;
         }
 
         progress("Validating downloaded tools…".into());
@@ -402,20 +463,29 @@ impl ToolManager {
     async fn verify_from_asset(
         &self,
         file: &Path,
-        checksums: &GithubAsset,
+        asset: &GithubAsset,
+        checksums: &Option<GithubAsset>,
         expected_name: &str,
     ) -> Result<(), ToolError> {
-        let text = self
-            .client
-            .get(&checksums.browser_download_url)
-            .send()
-            .await?
-            .error_for_status()?
-            .text()
-            .await?;
-        let expected = checksum_for(&text, expected_name).ok_or_else(|| {
-            ToolError::Metadata(format!("no checksum exists for {expected_name}"))
-        })?;
+        let expected = if let Some(checksums) = checksums {
+            let text = self
+                .client
+                .get(&checksums.browser_download_url)
+                .send()
+                .await?
+                .error_for_status()?
+                .text()
+                .await?;
+            checksum_for(&text, expected_name).ok_or_else(|| {
+                ToolError::Metadata(format!("no checksum exists for {expected_name}"))
+            })?
+        } else {
+            asset_sha256(asset).ok_or_else(|| {
+                ToolError::Metadata(format!(
+                    "release metadata has no SHA-256 digest for {expected_name}"
+                ))
+            })?
+        };
         let path = file.to_path_buf();
         let actual = tokio::task::spawn_blocking(move || sha256_file(&path))
             .await
@@ -451,6 +521,25 @@ impl ToolManager {
             let _ = fs::remove_dir_all(entry.path());
         }
     }
+}
+
+fn asset_sha256(asset: &GithubAsset) -> Option<String> {
+    let digest = asset.digest.as_deref()?.strip_prefix("sha256:")?;
+    is_sha256(digest).then(|| digest.to_ascii_lowercase())
+}
+
+#[cfg(unix)]
+fn make_executable(path: &Path) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut permissions = fs::metadata(path)?.permissions();
+    permissions.set_mode(permissions.mode() | 0o755);
+    fs::set_permissions(path, permissions)
+}
+
+#[cfg(not(unix))]
+fn make_executable(_path: &Path) -> io::Result<()> {
+    Ok(())
 }
 
 fn ensure_not_cancelled(cancel: &CancellationToken) -> Result<(), ToolError> {
@@ -600,7 +689,7 @@ fn extract_ffmpeg(
     }
     if !found_ffmpeg || !found_ffprobe {
         return Err(ToolError::Validation(
-            "FFmpeg ZIP does not contain ffmpeg.exe and ffprobe.exe".into(),
+            "FFmpeg ZIP does not contain the expected ffmpeg and ffprobe executables".into(),
         ));
     }
     Ok(())
@@ -643,7 +732,7 @@ fn extract_deno(
     }
     if !found {
         return Err(ToolError::Validation(
-            "Deno ZIP does not contain deno.exe".into(),
+            "Deno ZIP does not contain the expected executable".into(),
         ));
     }
     Ok(())
@@ -751,5 +840,19 @@ mod tests {
             checksum_for(&format!("{hash} other.exe\n"), "yt-dlp.exe"),
             None
         );
+    }
+
+    #[test]
+    fn reads_sha256_from_github_asset_metadata() {
+        let hash = "d".repeat(64);
+        let asset = GithubAsset {
+            name: "ffmpeg-osx-arm64".into(),
+            browser_download_url: "https://example.invalid/ffmpeg".into(),
+            size: 1,
+            updated_at: "2026-01-01T00:00:00Z".into(),
+            digest: Some(format!("sha256:{hash}")),
+        };
+
+        assert_eq!(asset_sha256(&asset), Some(hash));
     }
 }
