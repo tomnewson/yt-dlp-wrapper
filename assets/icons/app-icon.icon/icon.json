@@ -1,8 +1,17 @@
 {
-  "fill" : "automatic",
+  "features" : [
+    "refractivity"
+  ],
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:1.00000,0.75553,0.72030,1.00000",
+      "display-p3:1.00000,0.40359,0.39519,1.00000"
+    ]
+  },
   "groups" : [
     {
-      "blend-mode" : "normal",
+      "blend-mode" : "overlay",
+      "blur-material" : 0.25,
       "layers" : [
         {
           "blend-mode" : "multiply",
@@ -46,18 +55,25 @@
           }
         }
       ],
+      "lighting" : "individual",
       "opacity" : 1,
       "position" : {
-        "scale" : 2,
+        "scale" : 1.82,
         "translation-in-points" : [
           0,
           0
         ]
       },
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
+      "refractivity" : {
+        "depth" : 0.6185546875,
+        "enabled" : true,
+        "strength" : -0.5941015625
       },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.75
+      },
+      "specular" : true,
       "translucency" : {
         "enabled" : true,
         "value" : 0.3
