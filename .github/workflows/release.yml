@@ -1,4 +1,4 @@
-name: Build and release
+name: Build, test and release
 
 on:
   push:
@@ -10,8 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  test-and-build:
-    runs-on: windows-latest
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.build-version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -19,13 +21,40 @@ jobs:
 
       - name: Determine build version
         id: build-version
-        shell: pwsh
+        shell: bash
         run: |
-          $version = (git describe --tags --abbrev=0 --match "v[0-9]*").Substring(1)
-          if ($version -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
-            throw "Build version $version is not a supported semantic version."
-          }
-          "version=$version" >> $env:GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version=${GITHUB_REF_NAME#v}
+          else
+            latest_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+            if [[ -n "$latest_tag" ]]; then
+              released_version=${latest_tag#v}
+              if [[ ! "$released_version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+                echo "Latest tag $latest_tag is not a supported semantic version." >&2
+                exit 1
+              fi
+              major=${BASH_REMATCH[1]}
+              minor=${BASH_REMATCH[2]}
+              patch=${BASH_REMATCH[3]}
+              version="$major.$minor.$((10#$patch + 1))-ci.$GITHUB_RUN_NUMBER+${GITHUB_SHA::7}"
+            else
+              version="0.1.0-ci.$GITHUB_RUN_NUMBER+${GITHUB_SHA::7}"
+            fi
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Build version $version is not a supported semantic version." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build-windows:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
@@ -61,7 +90,7 @@ jobs:
 
       - name: Build Rust backend
         env:
-          YT_DLP_WRAPPER_VERSION: ${{ steps.build-version.outputs.version }}
+          YT_DLP_WRAPPER_VERSION: ${{ needs.prepare.outputs.version }}
         run: cargo build --release --target x86_64-pc-windows-msvc --locked
 
       - name: Publish Avalonia frontend
@@ -75,7 +104,7 @@ jobs:
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:PublishTrimmed=false
           -p:DebugType=None
-          -p:Version=${{ steps.build-version.outputs.version }}
+          -p:Version=${{ needs.prepare.outputs.version }}
           --output dist/yt-dlp-wrapper
 
       - name: Assemble portable application
@@ -111,7 +140,7 @@ jobs:
         run: >-
           vpk pack
           --packId yt-dlp-wrapper
-          --packVersion ${{ steps.build-version.outputs.version }}
+          --packVersion ${{ needs.prepare.outputs.version }}
           --packDir dist/yt-dlp-wrapper
           --mainExe yt-dlp-wrapper.exe
           --packTitle "YT-DLP Wrapper"
@@ -124,7 +153,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
-          $version = '${{ steps.build-version.outputs.version }}'
+          $version = '${{ needs.prepare.outputs.version }}'
           New-Item -ItemType Directory -Force dist/release-assets | Out-Null
           Copy-Item dist/velopack/releases.win.json dist/release-assets/
           Copy-Item "dist/velopack/yt-dlp-wrapper-$version-full.nupkg" dist/release-assets/
@@ -147,23 +176,13 @@ jobs:
           path: dist/release-assets/*
           if-no-files-found: error
 
-  build-macos-release:
-    if: startsWith(github.ref, 'refs/tags/v')
+  build-macos-arm64:
+    needs: prepare
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Determine build version
-        id: build-version
-        run: |
-          version=${GITHUB_REF_NAME#v}
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Build version $version is not a supported semantic version." >&2
-            exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
@@ -205,7 +224,7 @@ jobs:
 
       - name: Build macOS ARM64 application bundle
         env:
-          YT_DLP_WRAPPER_VERSION: ${{ steps.build-version.outputs.version }}
+          YT_DLP_WRAPPER_VERSION: ${{ needs.prepare.outputs.version }}
         run: ./scripts/build-macos-arm64.sh
 
       - name: Verify native executables and backend protocol
@@ -218,9 +237,11 @@ jobs:
           codesign --verify --deep --strict 'dist/macos-arm64/YT-DLP Wrapper.app'
 
       - name: Install Velopack CLI
+        if: startsWith(github.ref, 'refs/tags/v')
         run: dotnet tool install --global vpk --version 1.2.0
 
       - name: Download previous Velopack release for delta generation
+        if: startsWith(github.ref, 'refs/tags/v')
         continue-on-error: true
         run: >-
           vpk download github
@@ -230,10 +251,11 @@ jobs:
           --outputDir dist/velopack
 
       - name: Build macOS installer and update packages
+        if: startsWith(github.ref, 'refs/tags/v')
         run: >-
           vpk pack
           --packId yt-dlp-wrapper-macos
-          --packVersion ${{ steps.build-version.outputs.version }}
+          --packVersion ${{ needs.prepare.outputs.version }}
           --packDir "dist/macos-arm64/YT-DLP Wrapper.app"
           --mainExe yt-dlp-wrapper
           --packTitle "YT-DLP Wrapper"
@@ -244,6 +266,7 @@ jobs:
           --outputDir dist/velopack
 
       - name: Verify packaged macOS application
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           portable=$(find dist/velopack -maxdepth 1 -type f -name '*-Portable.zip' -print -quit)
           test -n "$portable"
@@ -258,8 +281,9 @@ jobs:
           test -f "$packaged_app/Contents/Resources/Assets.car"
 
       - name: Stage macOS release assets
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          version='${{ steps.build-version.outputs.version }}'
+          version='${{ needs.prepare.outputs.version }}'
           mkdir -p dist/release-assets
           cp dist/velopack/releases.osx.json dist/release-assets/
           cp "dist/velopack/yt-dlp-wrapper-macos-$version-osx-full.nupkg" dist/release-assets/
@@ -273,7 +297,15 @@ jobs:
           cp "$installer" dist/release-assets/YT-DLP-Wrapper-macOS-arm64-Installer.pkg
           cp "$portable" dist/release-assets/YT-DLP-Wrapper-macOS-arm64-Portable.zip
 
+      - name: Upload macOS ARM64 application
+        uses: actions/upload-artifact@v4
+        with:
+          name: yt-dlp-wrapper-macos-arm64
+          path: dist/macos-arm64/YT-DLP-Wrapper-macOS-arm64.zip
+          if-no-files-found: error
+
       - name: Upload macOS release assets
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
           name: yt-dlp-wrapper-macos-release-assets
@@ -282,7 +314,7 @@ jobs:
 
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test-and-build, build-macos-release]
+    needs: [build-windows, build-macos-arm64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
