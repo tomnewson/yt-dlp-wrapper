@@ -1,4 +1,7 @@
 {
+  "features" : [
+    "refractivity"
+  ],
   "fill" : {
     "linear-gradient" : [
       "display-p3:1.00000,0.75553,0.72030,1.00000",
@@ -63,7 +66,7 @@
       },
       "refractivity" : {
         "depth" : 0.6185546875,
-        "enabled" : false,
+        "enabled" : true,
         "strength" : -0.5941015625
       },
       "shadow" : {
