@@ -1,56 +1,89 @@
 {
+  "features" : [
+    "refractivity"
+  ],
   "fill" : {
     "linear-gradient" : [
-      "display-p3:1.00000,0.75553,0.72030,1.00000",
-      "display-p3:1.00000,0.40359,0.39519,1.00000"
+      "display-p3:0.67897,0.26433,0.23365,1.00000",
+      "display-p3:0.89527,0.56669,0.54958,1.00000"
     ]
   },
   "groups" : [
     {
-      "blend-mode" : "overlay",
+      "blend-mode" : "darken",
       "blur-material" : 0.25,
       "layers" : [
         {
-          "blend-mode" : "multiply",
+          "blend-mode" : "screen",
           "fill" : "automatic",
           "image-name" : "app-icon_Layer 3.svg",
           "name" : "app-icon_Layer 3",
-          "opacity" : 0.75,
+          "opacity" : 0.66,
           "position" : {
-            "scale" : 1,
+            "scale" : 1.5,
             "translation-in-points" : [
-              3.57968400675486,
-              34.02993000000009
+              0.06598207442277726,
+              18.0000041826398
             ]
           }
         },
         {
-          "blend-mode" : "multiply",
-          "image-name" : "app-icon_Layer 2.svg",
-          "name" : "app-icon_Layer 2",
-          "opacity" : 0.75,
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              -70.79460300000005,
-              22.632794210102247
-            ]
-          }
-        },
-        {
-          "blend-mode" : "multiply",
+          "blend-mode" : "normal",
           "glass" : true,
           "image-name" : "app-icon_Layer 1.svg",
           "name" : "app-icon_Layer 1",
-          "opacity" : 0.75,
+          "opacity" : 0.66,
           "position" : {
-            "scale" : 1,
+            "scale" : 1.16,
             "translation-in-points" : [
-              70.59077500000001,
-              21.39960380653565
+              -117.42006819019616,
+              40.00000000000006
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "image-name" : "app-icon_Layer 2.svg",
+          "name" : "app-icon_Layer 2",
+          "opacity" : 0.66,
+          "position" : {
+            "scale" : 1.16,
+            "translation-in-points" : [
+              118.37682857132057,
+              32.000000000000114
             ]
           }
         }
+      ],
+      "lighting" : "individual",
+      "opacity" : 1,
+      "position" : {
+        "scale" : 1.22,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "refractivity" : {
+        "depth" : 0.6185546875,
+        "enabled" : false,
+        "strength" : -0.5941015625
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 1
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.45
+      }
+    },
+    {
+      "blend-mode" : "overlay",
+      "blur-material" : 0.25,
+      "layers" : [
+
       ],
       "lighting" : "individual",
       "opacity" : 1,
@@ -63,7 +96,7 @@
       },
       "refractivity" : {
         "depth" : 0.6185546875,
-        "enabled" : false,
+        "enabled" : true,
         "strength" : -0.5941015625
       },
       "shadow" : {
