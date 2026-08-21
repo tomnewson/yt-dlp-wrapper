@@ -379,17 +379,13 @@ impl ToolManager {
         smoke_test(&stage.join(&self.platform.layout.ffprobe), &["-version"]).await?;
         smoke_test(&stage.join(&self.platform.layout.deno), &["--version"]).await?;
 
-        let id = format!(
-            "{}-{}-{}-{}",
+        let id = toolset_id(
             self.platform.id,
-            safe_id(&plan.yt_dlp.version),
-            safe_id(&short_version(&plan.ffmpeg.version)),
-            safe_id(&plan.deno.version)
+            &plan.yt_dlp.version,
+            &plan.ffmpeg.version,
+            &plan.deno.version,
         );
         let final_directory = self.root.join("tools").join(&id);
-        if final_directory.exists() {
-            fs::remove_dir_all(&final_directory)?;
-        }
         fs::rename(stage, &final_directory)?;
 
         let relative_directory = PathBuf::from("tools").join(&id);
@@ -799,6 +795,17 @@ fn safe_id(value: &str) -> String {
         .collect()
 }
 
+fn toolset_id(platform: &str, yt_dlp: &str, ffmpeg: &str, deno: &str) -> String {
+    format!(
+        "{}-{}-{}-{}-{}",
+        platform,
+        safe_id(yt_dlp),
+        safe_id(&short_version(ffmpeg)),
+        safe_id(deno),
+        Uuid::new_v4()
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -877,5 +884,24 @@ mod tests {
         };
 
         assert_eq!(asset_sha256(&asset), Some(hash));
+    }
+
+    #[test]
+    fn repeated_installations_use_distinct_toolset_directories() {
+        let first = toolset_id(
+            "windows-x64",
+            "2026.08.20",
+            "2026-08-20T12:00:00Z",
+            "v2.4.0",
+        );
+        let second = toolset_id(
+            "windows-x64",
+            "2026.08.20",
+            "2026-08-20T12:00:00Z",
+            "v2.4.0",
+        );
+
+        assert_ne!(first, second);
+        assert!(first.starts_with("windows-x64-2026-08-20-2026-08-20T12-00-00-v2-4-0-"));
     }
 }
