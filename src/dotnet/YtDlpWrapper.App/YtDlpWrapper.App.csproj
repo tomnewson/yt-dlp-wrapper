@@ -34,7 +34,7 @@
     <PropertyGroup>
       <Version>$([System.Text.RegularExpressions.Regex]::Replace('$(GitVersionTag)', '^v', ''))</Version>
     </PropertyGroup>
-    <Error Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(Version)', '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$')) != 'true'"
+    <Error Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(Version)', '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$')) != 'true'"
            Text="Git tag $(GitVersionTag) does not contain a supported semantic version." />
   </Target>
 </Project>

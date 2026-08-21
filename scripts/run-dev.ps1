@@ -9,7 +9,7 @@ $previousBackendVersion = $env:YT_DLP_WRAPPER_VERSION
 Push-Location $repositoryRoot
 try {
     $versionTag = (& git describe --tags --abbrev=0 --match "v[0-9]*").Trim()
-    if ($LASTEXITCODE -ne 0 -or $versionTag -notmatch '^v(\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?)$') {
+    if ($LASTEXITCODE -ne 0 -or $versionTag -notmatch '^v(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?)$') {
         throw "Could not determine a semantic build version from the repository's Git tags."
     }
     $buildVersion = $versionTag.Substring(1)

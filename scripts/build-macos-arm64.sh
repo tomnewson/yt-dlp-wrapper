@@ -38,7 +38,7 @@ if [[ -z "$build_version" ]]; then
     version_tag=$(git -C "$repository_root" describe --tags --abbrev=0 --match 'v[0-9]*')
     build_version=${version_tag#v}
 fi
-if [[ ! "$build_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+if [[ ! "$build_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
     echo "Build version is not a supported semantic version: $build_version" >&2
     exit 1
 fi
