@@ -10,6 +10,7 @@ use std::{
     path::{Path, PathBuf},
     process::Stdio,
     sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use thiserror::Error;
 use tokio::{io::AsyncWriteExt, process::Command};
@@ -19,6 +20,8 @@ use uuid::Uuid;
 const YT_DLP_RELEASE_API: &str =
     "https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest";
 const DENO_RELEASE_API: &str = "https://api.github.com/repos/denoland/deno/releases/latest";
+const UPDATE_CHECK_TIMESTAMP_FILE: &str = "last-update-check.txt";
+const MINIMUM_UPDATE_CHECK_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 pub type ToolProgress = Arc<dyn Fn(String) + Send + Sync>;
 
@@ -182,7 +185,17 @@ impl ToolManager {
     pub async fn check_updates(
         &self,
         active: Option<&ActiveToolset>,
-    ) -> Result<UpdatePlan, ToolError> {
+    ) -> Result<Option<UpdatePlan>, ToolError> {
+        let timestamp_path = self.root.join(UPDATE_CHECK_TIMESTAMP_FILE);
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if active.is_some() && !update_check_is_due(&timestamp_path, now) {
+            return Ok(None);
+        }
+        fs::write(&timestamp_path, now.to_string())?;
+
         let (yt, ffmpeg, deno) = tokio::try_join!(
             self.release(YT_DLP_RELEASE_API),
             self.release(self.platform.ffmpeg_release_api),
@@ -217,14 +230,14 @@ impl ToolManager {
             checksums: Some(deno.asset(self.platform.deno_checksums)?),
         };
 
-        Ok(UpdatePlan {
+        Ok(Some(UpdatePlan {
             update_yt_dlp: active.is_none_or(|a| a.yt_dlp_version != yt_component.version),
             update_ffmpeg: active.is_none_or(|a| a.ffmpeg_version != ffmpeg_component.version),
             update_deno: active.is_none_or(|a| a.deno_version != deno_component.version),
             yt_dlp: yt_component,
             ffmpeg: ffmpeg_component,
             deno: deno_component,
-        })
+        }))
     }
 
     pub async fn install(
@@ -521,6 +534,16 @@ impl ToolManager {
             let _ = fs::remove_dir_all(entry.path());
         }
     }
+}
+
+fn update_check_is_due(path: &Path, now: u64) -> bool {
+    let Ok(value) = fs::read_to_string(path) else {
+        return true;
+    };
+    let Ok(last_check) = value.trim().parse::<u64>() else {
+        return true;
+    };
+    last_check > now || now - last_check >= MINIMUM_UPDATE_CHECK_INTERVAL.as_secs()
 }
 
 fn asset_sha256(asset: &GithubAsset) -> Option<String> {

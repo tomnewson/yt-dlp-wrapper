@@ -214,6 +214,44 @@ public sealed class PlatformServicesTests
 
 }
 
+public sealed class ApplicationUpdaterTests
+{
+    [Fact]
+    public async Task UpdateChecksAreThrottledForFiveMinutesAcrossInstances()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"yt-dlp-wrapper-tests-{Guid.NewGuid():N}");
+        var timestampPath = Path.Combine(directory, "last-update-check.txt");
+        var now = new DateTimeOffset(2026, 8, 21, 12, 0, 0, TimeSpan.Zero);
+        var firstInner = new FakeApplicationUpdater();
+        var first = new ThrottledApplicationUpdater(firstInner, timestampPath, () => now);
+
+        try
+        {
+            await first.CheckForUpdatesAsync();
+            Assert.True(long.TryParse(await File.ReadAllTextAsync(timestampPath), out _));
+            var reopenedInner = new FakeApplicationUpdater();
+            var reopened = new ThrottledApplicationUpdater(reopenedInner, timestampPath, () => now.AddMinutes(4));
+
+            await reopened.CheckForUpdatesAsync();
+
+            Assert.Equal(1, firstInner.CheckCount);
+            Assert.Equal(0, reopenedInner.CheckCount);
+
+            var afterInterval = new ThrottledApplicationUpdater(
+                reopenedInner,
+                timestampPath,
+                () => now.AddMinutes(5));
+            await afterInterval.CheckForUpdatesAsync();
+
+            Assert.Equal(1, reopenedInner.CheckCount);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+}
+
 internal sealed class FakeBackendClient : IBackendClient
 {
     private readonly Dictionary<string, Queue<JsonElement>> _responses = [];
@@ -261,11 +299,15 @@ internal sealed class FakeApplicationUpdater : IApplicationUpdater
     public ApplicationUpdate? NextUpdate { get; init; }
     public bool Downloaded { get; private set; }
     public bool Applied { get; private set; }
+    public int CheckCount { get; private set; }
     public bool CanUpdate => true;
     public string CurrentVersion => ApplicationVersion.Current;
 
-    public Task<ApplicationUpdate?> CheckForUpdatesAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(NextUpdate);
+    public Task<ApplicationUpdate?> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
+    {
+        CheckCount++;
+        return Task.FromResult(NextUpdate);
+    }
 
     public Task DownloadAsync(
         ApplicationUpdate update,

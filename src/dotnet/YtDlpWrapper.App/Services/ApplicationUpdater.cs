@@ -7,16 +7,88 @@ public static class ApplicationUpdater
 {
     private const string RepositoryUrl = "https://github.com/tomnewson/yt-dlp-wrapper";
 
-    public static IApplicationUpdater Create()
+    public static IApplicationUpdater Create(ApplicationPaths? paths = null)
     {
         try
         {
-            return new VelopackApplicationUpdater(new UpdateManager(
+            paths ??= ApplicationPaths.Create();
+            var updater = new VelopackApplicationUpdater(new UpdateManager(
                 new GithubSource(RepositoryUrl, accessToken: null, prerelease: false)));
+            return new ThrottledApplicationUpdater(
+                updater,
+                Path.Combine(paths.DataRoot, "last-update-check.txt"));
         }
         catch (Exception)
         {
             return UnavailableApplicationUpdater.Instance;
+        }
+    }
+}
+
+internal sealed class ThrottledApplicationUpdater(
+    IApplicationUpdater inner,
+    string timestampPath,
+    Func<DateTimeOffset>? getUtcNow = null) : IApplicationUpdater
+{
+    private static readonly TimeSpan MinimumCheckInterval = TimeSpan.FromMinutes(5);
+    private readonly Func<DateTimeOffset> _getUtcNow = getUtcNow ?? (() => DateTimeOffset.UtcNow);
+
+    public bool CanUpdate => inner.CanUpdate;
+    public string CurrentVersion => inner.CurrentVersion;
+
+    public async Task<ApplicationUpdate?> CheckForUpdatesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var now = _getUtcNow();
+        if (TryReadLastCheck(out var lastCheck) &&
+            lastCheck <= now &&
+            now - lastCheck < MinimumCheckInterval)
+        {
+            return null;
+        }
+
+        var directory = Path.GetDirectoryName(timestampPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+        await File.WriteAllTextAsync(
+            timestampPath,
+            now.ToUnixTimeSeconds().ToString(),
+            cancellationToken);
+        return await inner.CheckForUpdatesAsync(cancellationToken);
+    }
+
+    public Task DownloadAsync(
+        ApplicationUpdate update,
+        Action<int>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        inner.DownloadAsync(update, progress, cancellationToken);
+
+    public void ApplyAndRestart(ApplicationUpdate update) => inner.ApplyAndRestart(update);
+
+    private bool TryReadLastCheck(out DateTimeOffset lastCheck)
+    {
+        try
+        {
+            var value = File.ReadAllText(timestampPath);
+            if (!long.TryParse(value, out var unixSeconds))
+            {
+                lastCheck = default;
+                return false;
+            }
+            lastCheck = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
+            return true;
+        }
+        catch (IOException)
+        {
+            lastCheck = default;
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            lastCheck = default;
+            return false;
         }
     }
 }

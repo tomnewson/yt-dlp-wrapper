@@ -20,8 +20,9 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             MainWindow? window = null;
-            var platform = PlatformServices.Create(() => window);
-            var updater = ApplicationUpdater.Create();
+            var paths = ApplicationPaths.Create();
+            var platform = PlatformServices.Create(() => window, paths);
+            var updater = ApplicationUpdater.Create(paths);
             _backend = new BackendClient(platform);
             var viewModel = new MainWindowViewModel(_backend, platform, updater);
             window = new MainWindow { DataContext = viewModel };

@@ -163,7 +163,7 @@ impl AppEngine {
             *self.active_tools.write().await = cached.clone();
             let checked = manager.check_updates(cached.as_ref()).await;
             match checked {
-                Ok(plan) if plan.has_updates() => {
+                Ok(Some(plan)) if plan.has_updates() => {
                     let first_setup = cached.is_none();
                     let summary = plan.summary();
                     *self.pending_update.lock().await = Some(plan);
