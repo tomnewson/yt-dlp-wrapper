@@ -15,18 +15,22 @@
               BorderBrush="{DynamicResource AppText}"
               BorderThickness="0,0,0,2"
               Padding="24,20">
+
           <Border BorderBrush="{DynamicResource AppPaper}"
                   BorderThickness="2"
                   Padding="7,6">
-            <Viewbox Stretch="Fill" StretchDirection="Both">
+
+              <Viewbox Stretch="Fill"
+                        Height="96"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center">
               <TextBlock Text="YT-DLP Wrapper"
-                         FontSize="44"
-                         FontWeight="Normal"
-                         LetterSpacing="-1.6"
-                         Foreground="{DynamicResource AppPaper}" />
-            </Viewbox>
+                        FontSize="44"
+                        LetterSpacing="-1.6"
+                        Foreground="{DynamicResource AppPaper}" />
+              </Viewbox>
+
           </Border>
-         
       </Border>
 
       <StackPanel Grid.Row="1" Margin="32,26,32,30" Spacing="20">
