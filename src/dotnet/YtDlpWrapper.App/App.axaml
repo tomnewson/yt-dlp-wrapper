@@ -131,6 +131,12 @@
       <Setter Property="Background" Value="{DynamicResource AppText}" />
       <Setter Property="Foreground" Value="{DynamicResource AppPaper}" />
     </Style>
+    <Style Selector="Button.clearInput:pointerover">
+      <Setter Property="Foreground" Value="{DynamicResource AppAccentStrong}" />
+    </Style>
+    <Style Selector="Button.clearInput:pressed">
+      <Setter Property="Foreground" Value="{DynamicResource AppAccent}" />
+    </Style>
 
     <Style Selector="HyperlinkButton">
       <Setter Property="MinHeight" Value="0" />

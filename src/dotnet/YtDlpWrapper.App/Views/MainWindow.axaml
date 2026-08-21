@@ -116,7 +116,17 @@
                   Text="{Binding Url}"
                   PlaceholderText="https://…"
                   IsEnabled="{Binding CanEdit}"
-                  AutomationProperties.Name="URL" />
+                  AutomationProperties.Name="URL">
+          <TextBox.InnerRightContent>
+            <Button Classes="clearInput"
+                    Content="✕"
+                    Command="{Binding ClearSearchCommand}"
+                    IsVisible="{Binding HasUrl}"
+                  Background="Transparent"
+                  BorderThickness="0"
+                    AutomationProperties.Name="Clear URL" />
+          </TextBox.InnerRightContent>
+        </TextBox>
 
         <Border Background="{DynamicResource AppPanel}"
                 BorderBrush="{DynamicResource AppText}"
@@ -184,7 +194,7 @@
                 BorderThickness="0,1,0,0"
                 Padding="0,18,0,0">
           <StackPanel Spacing="12">
-              <Grid Height="72" ColumnDefinitions="*,Auto">
+              <Grid Height="85" ColumnDefinitions="*,Auto">
               <Button Classes="primary"
                       IsVisible="{Binding ShowDownloadButton}"
                       Content="Download"

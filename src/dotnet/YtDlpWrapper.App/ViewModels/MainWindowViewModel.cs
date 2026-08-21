@@ -18,6 +18,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanDownload))]
+    [NotifyPropertyChangedFor(nameof(HasUrl))]
     private string _url = string.Empty;
 
     [ObservableProperty]
@@ -141,6 +142,7 @@ public partial class MainWindowViewModel : ObservableObject
     public bool CanEdit => ToolsReady && !Busy && !ApplicationUpdateBusy;
     public bool CanBrowse => !Busy && !ApplicationUpdateBusy;
     public bool CanChangeQuality => CanEdit;
+    public bool HasUrl => !string.IsNullOrEmpty(Url);
     public bool CanDownload =>
         ToolsReady && !Busy && !ApplicationUpdateBusy && !UpdateAvailable &&
         !string.IsNullOrWhiteSpace(Url) && !string.IsNullOrWhiteSpace(OutputFolder);
@@ -406,6 +408,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleDetails() => ShowDetails = !ShowDetails;
+
+    [RelayCommand]
+    private void ClearSearch() => Url = string.Empty;
 
     private void OnBackendEvent(BackendEvent message) =>
         _dispatch(() => HandleBackendEvent(message));
