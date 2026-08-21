@@ -25,6 +25,7 @@
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Center">
               <TextBlock Text="YT-DLP Wrapper"
+                        FontFamily="{StaticResource AppDisplayFontFamily}"
                         FontSize="44"
                         LetterSpacing="-1.6"
                         Foreground="{DynamicResource AppPaper}" />
@@ -120,37 +121,44 @@
         <Border Background="{DynamicResource AppPanel}"
                 BorderBrush="{DynamicResource AppText}"
                 BorderThickness="2"
-                Padding="18,16">
-          <StackPanel Spacing="10">
-            <Slider Margin="2,4,2,0"
-                  Minimum="0" Maximum="3" TickFrequency="1"
+              Padding="18,16">
+            <StackPanel Spacing="0">
+            <Slider Margin="10,4,10,0"
+                    Minimum="0" Maximum="3" TickFrequency="1"
                     IsSnapToTickEnabled="True"
                     Value="{Binding VideoQuality}"
                     IsEnabled="{Binding CanChangeQuality}"
-                  AutomationProperties.Name="Quality, audio only, 1080p, 1440p, or best" />
-                <Grid ColumnDefinitions="*,*,*,*">
-                  <TextBlock Text="Audio"
-                         FontSize="14"
-                         FontWeight="Normal"
-                         Foreground="{DynamicResource AppMutedText}" />
-              <TextBlock Grid.Column="1"
-                 Text="1080p"
-                         FontSize="14"
-                         FontWeight="Normal"
-                         TextAlignment="Center"
-                         Foreground="{DynamicResource AppMutedText}" />
-              <TextBlock Grid.Column="2"
-                 Text="1440p"
-                         FontSize="14"
-                         FontWeight="Normal"
-                 TextAlignment="Center"
-                 Foreground="{DynamicResource AppMutedText}" />
-                  <TextBlock Grid.Column="3"
-                 Text="Best"
-                 FontSize="14"
-                 FontWeight="Normal"
-                         TextAlignment="Right"
-                         Foreground="{DynamicResource AppMutedText}" />
+                    AutomationProperties.Name="Quality, audio only, 1080p, 1440p, or best" />
+            <Grid Margin="10,0"
+              Height="34"
+                  ColumnDefinitions="0,*,0,*,0,*,0"
+                  ClipToBounds="False">
+              <Viewbox Grid.Column="0"
+                       Width="42" Height="34"
+                       HorizontalAlignment="Left"
+                       Stretch="Fill">
+                <TextBlock Text="Audio"
+                           FontFamily="{StaticResource AppDisplayFontFamily}"
+                           Foreground="{DynamicResource AppText}" />
+              </Viewbox>
+              <Viewbox Grid.Column="2" Width="42" Height="34" Stretch="Fill">
+                <TextBlock Text="1080p"
+                           FontFamily="{StaticResource AppDisplayFontFamily}"
+                           Foreground="{DynamicResource AppText}" />
+              </Viewbox>
+              <Viewbox Grid.Column="4" Width="42" Height="34" Stretch="Fill">
+                <TextBlock Text="1440p"
+                           FontFamily="{StaticResource AppDisplayFontFamily}"
+                           Foreground="{DynamicResource AppText}" />
+              </Viewbox>
+              <Viewbox Grid.Column="6"
+                       Width="42" Height="34"
+                       HorizontalAlignment="Right"
+                       Stretch="Fill">
+                <TextBlock Text="Best"
+                           FontFamily="{StaticResource AppDisplayFontFamily}"
+                           Foreground="{DynamicResource AppText}" />
+              </Viewbox>
             </Grid>
           </StackPanel>
         </Border>
@@ -161,6 +169,7 @@
                     IsReadOnly="True"
                     AutomationProperties.Name="Output" />
           <Button Grid.Column="1"
+              Width="80"
                   MinHeight="48"
                   Content="Browse"
                   Command="{Binding BrowseOutputCommand}"
@@ -175,9 +184,30 @@
                 BorderThickness="0,1,0,0"
                 Padding="0,18,0,0">
           <StackPanel Spacing="12">
+              <Grid Height="72" ColumnDefinitions="*,Auto">
+              <Button Classes="primary"
+                      IsVisible="{Binding ShowDownloadButton}"
+                      Content="Download"
+                      Command="{Binding StartDownloadCommand}"
+                  IsEnabled="{Binding CanDownload}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+            <Button Margin="8,0,0,0"
+              IsVisible="{Binding ShowCancelButton}"
+              Content="Cancel"
+              Command="{Binding CancelCommand}" />
+            <Button Margin="8,0,0,0"
+              IsVisible="{Binding ShowDetailsButton}"
+              Content="{Binding DetailsButtonText}"
+              Command="{Binding ToggleDetailsCommand}" />
+            <Button Margin="8,0,0,0"
+              IsVisible="{Binding ShowRestartButton}"
+              Content="Restart engine"
+              Command="{Binding RestartBackendCommand}" />
+                </StackPanel>
+              </Grid>
             <TextBlock Classes="status"
                        Classes.error="{Binding Failed}"
-                       IsVisible="{Binding !HasCompletedFile}"
+                       IsVisible="{Binding ShowStatusText}"
                        FontSize="16"
                        FontWeight="Normal"
                        Text="{Binding StatusText}"
@@ -188,22 +218,6 @@
                              Content="{Binding StatusText}"
                              Command="{Binding OpenFolderCommand}"
                              AutomationProperties.Name="Show downloaded file in file manager" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button Classes="primary"
-                      IsVisible="{Binding ShowDownloadButton}"
-                      Content="Download"
-                      Command="{Binding StartDownloadCommand}"
-                      IsEnabled="{Binding CanDownload}" />
-              <Button IsVisible="{Binding ShowCancelButton}"
-                      Content="Cancel"
-                      Command="{Binding CancelCommand}" />
-              <Button IsVisible="{Binding ShowDetailsButton}"
-                      Content="{Binding DetailsButtonText}"
-                      Command="{Binding ToggleDetailsCommand}" />
-              <Button IsVisible="{Binding ShowRestartButton}"
-                      Content="Restart engine"
-                      Command="{Binding RestartBackendCommand}" />
-            </StackPanel>
           </StackPanel>
         </Border>
 

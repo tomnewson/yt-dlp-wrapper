@@ -152,6 +152,18 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void OnlyIdleReadyStatusIsHidden()
+    {
+        var viewModel = CreateViewModel(new FakeBackendClient());
+
+        viewModel.StatusText = "Ready.";
+        Assert.False(viewModel.ShowStatusText);
+
+        viewModel.StatusText = "Could not check for updates. Cached tools are ready.";
+        Assert.True(viewModel.ShowStatusText);
+    }
+
+    [Fact]
     public async Task ApplicationUpdateDownloadsStopsBackendAndApplies()
     {
         var backend = new FakeBackendClient();

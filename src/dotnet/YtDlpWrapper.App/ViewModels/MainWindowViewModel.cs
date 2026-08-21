@@ -60,7 +60,7 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _canInstallTools;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasCompletedFile))]
+    [NotifyPropertyChangedFor(nameof(HasCompletedFile), nameof(ShowStatusText))]
     private bool _completed;
 
     [ObservableProperty]
@@ -75,6 +75,7 @@ public partial class MainWindowViewModel : ObservableObject
     private double _progress;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStatusText))]
     private string _statusText = "Starting the download engine…";
 
     [ObservableProperty]
@@ -85,7 +86,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string _detailsText = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasCompletedFile))]
+    [NotifyPropertyChangedFor(nameof(HasCompletedFile), nameof(ShowStatusText))]
     private string? _completedPath;
 
     [ObservableProperty]
@@ -150,6 +151,7 @@ public partial class MainWindowViewModel : ObservableObject
     public bool ShowDetailsButton => !string.IsNullOrWhiteSpace(DetailsText);
     public bool IsProgressIndeterminate => Busy && Progress <= 0;
     public bool HasCompletedFile => Completed && !string.IsNullOrWhiteSpace(CompletedPath);
+    public bool ShowStatusText => !HasCompletedFile && StatusText != "Ready.";
     public string DetailsButtonText => ShowDetails ? "Hide details" : "Details";
     public bool ShowRestartButton => EngineUnavailable && !Busy;
     public bool ShowApplicationUpdatePanel => ApplicationUpdateAvailable;

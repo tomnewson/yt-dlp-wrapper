@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Use YT_DLP_WRAPPER_DATA_ROOT="$(mktemp -d)" ./scripts/run-dev.sh to preview first-run states.
 set -euo pipefail
 
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
