@@ -6,6 +6,7 @@ namespace YtDlpWrapper.Services;
 public static class ApplicationUpdater
 {
     private const string RepositoryUrl = "https://github.com/tomnewson/yt-dlp-wrapper";
+    private const string UpdateCheckTimestampFile = "last-application-update-check.txt";
 
     public static IApplicationUpdater Create(ApplicationPaths? paths = null)
     {
@@ -16,7 +17,7 @@ public static class ApplicationUpdater
                 new GithubSource(RepositoryUrl, accessToken: null, prerelease: false)));
             return new ThrottledApplicationUpdater(
                 updater,
-                Path.Combine(paths.DataRoot, "last-update-check.txt"));
+                Path.Combine(paths.DataRoot, UpdateCheckTimestampFile));
         }
         catch (Exception)
         {
