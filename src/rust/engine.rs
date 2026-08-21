@@ -448,7 +448,7 @@ pub enum BackendError {
     UnsupportedPlatform(String),
     #[error("another operation is already running")]
     Busy,
-    #[error("Enter a valid HTTP or HTTPS video URL.")]
+    #[error("Enter a valid URL.")]
     InvalidUrl,
     #[error("invalid request: {0}")]
     InvalidRequest(String),

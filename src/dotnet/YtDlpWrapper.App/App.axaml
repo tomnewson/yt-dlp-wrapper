@@ -1,26 +1,181 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="YtDlpWrapper.App"
-             RequestedThemeVariant="Dark">
+             RequestedThemeVariant="Light">
+  <Application.Resources>
+    <Color x:Key="AppBurntTangerineColor">#E3170A</Color>
+    <Color x:Key="AppSpicyPaprikaColor">#E16036</Color>
+    <Color x:Key="AppPowderBlushColor">#D6A99A</Color>
+    <Color x:Key="AppWarmDustColor">#D6CBC1</Color>
+    <Color x:Key="AppCoolDustColor">#CDD6D0</Color>
+    <Color x:Key="AppInkColor">#241B18</Color>
+    <Color x:Key="AppPaperColor">#FFF9F4</Color>
+    <Color x:Key="AppMutedInkColor">#A6241B18</Color>
+    <Color x:Key="AppLineColor">#80241B18</Color>
+
+    <SolidColorBrush x:Key="AppBackground" Color="{StaticResource AppWarmDustColor}" />
+    <SolidColorBrush x:Key="AppSurface" Color="{StaticResource AppCoolDustColor}" />
+    <SolidColorBrush x:Key="AppPanel" Color="{StaticResource AppPowderBlushColor}" />
+    <SolidColorBrush x:Key="AppAccent" Color="{StaticResource AppSpicyPaprikaColor}" />
+    <SolidColorBrush x:Key="AppAccentStrong" Color="{StaticResource AppBurntTangerineColor}" />
+    <SolidColorBrush x:Key="AppText" Color="{StaticResource AppInkColor}" />
+    <SolidColorBrush x:Key="AppPaper" Color="{StaticResource AppPaperColor}" />
+    <SolidColorBrush x:Key="AppMutedText" Color="{StaticResource AppMutedInkColor}" />
+    <SolidColorBrush x:Key="AppLine" Color="{StaticResource AppLineColor}" />
+    <SolidColorBrush x:Key="AppError" Color="{StaticResource AppBurntTangerineColor}" />
+    <FontFamily x:Key="AppFontFamily">avares://yt-dlp-wrapper/Assets/Fonts#BBC Reith Serif</FontFamily>
+
+    <Color x:Key="SystemAccentColor">#E3170A</Color>
+    <Color x:Key="SystemAccentColorDark1">#E16036</Color>
+    <Color x:Key="SystemAccentColorLight1">#E3170A</Color>
+  </Application.Resources>
+
   <Application.Styles>
     <FluentTheme />
-  </Application.Styles>
 
-  <Application.Resources>
-    <Color x:Key="AppBackgroundColor">#121619</Color>
-    <Color x:Key="AppTextColor">#F4F1E8</Color>
-    <Color x:Key="AppHighlightColor">#BCB382</Color>
-    <Color x:Key="AppPanelColor">#2D4739</Color>
-    <Color x:Key="AppPanelPointerOverColor">#3A5A48</Color>
-    <Color x:Key="AppPanelPressedColor">#20352A</Color>
-    <Color x:Key="AppDisabledButtonForegroundColor">#4A4E47</Color>
-    <Color x:Key="AppDisabledButtonBorderColor">#676A61</Color>
-    <Color x:Key="AppErrorColor">#F08A84</Color>
-    <SolidColorBrush x:Key="AppBackground" Color="{StaticResource AppBackgroundColor}" />
-    <SolidColorBrush x:Key="AppText" Color="{StaticResource AppTextColor}" />
-    <SolidColorBrush x:Key="AppHighlight" Color="{StaticResource AppHighlightColor}" />
-    <SolidColorBrush x:Key="AppPanel" Color="{StaticResource AppPanelColor}" />
-    <SolidColorBrush x:Key="AppError" Color="{StaticResource AppErrorColor}" />
-    <Color x:Key="SystemAccentColor">#09814A</Color>
-  </Application.Resources>
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+    </Style>
+
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
+    </Style>
+
+    <Style Selector="Button">
+      <Setter Property="MinHeight" Value="44" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppText}" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <ContentPresenter Name="CenteredContent"
+                            Padding="{TemplateBinding Padding}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            RecognizesAccessKey="True"
+                            TextElement.Foreground="{TemplateBinding Foreground}" />
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AppPanel}" />
+    </Style>
+    <Style Selector="Button:pressed">
+      <Setter Property="Background" Value="{DynamicResource AppAccent}" />
+    </Style>
+    <Style Selector="Button:disabled">
+      <Setter Property="Background" Value="{DynamicResource AppPanel}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
+      <Setter Property="Opacity" Value="0.62" />
+    </Style>
+
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AppAccentStrong}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppPaper}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppText}" />
+    </Style>
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AppAccent}" />
+    </Style>
+    <Style Selector="Button.primary:disabled">
+      <Setter Property="Background" Value="{DynamicResource AppAccentStrong}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppPaper}" />
+    </Style>
+    <Style Selector="Button.headerAction">
+      <Setter Property="MinWidth" Value="104" />
+      <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppText}" />
+    </Style>
+    <Style Selector="Button.headerAction:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AppPanel}" />
+    </Style>
+    <Style Selector="Button.panelAction">
+      <Setter Property="Background" Value="{DynamicResource AppText}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppPaper}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppText}" />
+    </Style>
+    <Style Selector="Button.panelAction:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AppAccent}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
+    </Style>
+    <Style Selector="Button.panelAction:disabled">
+      <Setter Property="Background" Value="{DynamicResource AppText}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppPaper}" />
+    </Style>
+
+    <Style Selector="HyperlinkButton">
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource AppAccentStrong}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="HyperlinkButton:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource AppAccent}" />
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="MinHeight" Value="48" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
+      <Setter Property="PlaceholderForeground" Value="{DynamicResource AppMutedText}" />
+      <Setter Property="CaretBrush" Value="{DynamicResource AppAccentStrong}" />
+      <Setter Property="SelectionBrush" Value="{DynamicResource AppAccent}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppText}" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="TextBox:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource AppAccent}" />
+    </Style>
+    <Style Selector="TextBox:focus">
+      <Setter Property="BorderBrush" Value="{DynamicResource AppAccentStrong}" />
+      <Setter Property="BorderThickness" Value="3" />
+    </Style>
+    <Style Selector="TextBox.details">
+      <Setter Property="MinHeight" Value="96" />
+      <Setter Property="Padding" Value="14,12" />
+      <Setter Property="VerticalContentAlignment" Value="Top" />
+    </Style>
+
+    <Style Selector="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+
+    <Style Selector="ProgressBar">
+      <Setter Property="MinHeight" Value="8" />
+      <Setter Property="Foreground" Value="{DynamicResource AppAccentStrong}" />
+      <Setter Property="Background" Value="{DynamicResource AppPanel}" />
+    </Style>
+
+    <Style Selector="TextBlock.status">
+      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
+    </Style>
+    <Style Selector="TextBlock.status.error">
+      <Setter Property="Foreground" Value="{DynamicResource AppError}" />
+    </Style>
+  </Application.Styles>
 </Application>

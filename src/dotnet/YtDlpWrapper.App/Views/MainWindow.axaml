@@ -4,164 +4,263 @@
         x:Class="YtDlpWrapper.Views.MainWindow"
         x:DataType="viewModels:MainWindowViewModel"
         Title="YT-DLP Wrapper"
-        Width="560" Height="640"
-        MinWidth="520" MinHeight="480"
+        Width="680" Height="760"
+        MinWidth="560" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBackground}">
-  <Window.Styles>
-    <Style Selector="TextBlock.status">
-      <Setter Property="Foreground" Value="{DynamicResource AppText}" />
-    </Style>
-    <Style Selector="TextBlock.status.error">
-      <Setter Property="Foreground" Value="{DynamicResource AppError}" />
-    </Style>
-  </Window.Styles>
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-    <Grid Margin="28" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" RowSpacing="16">
-      <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-        <TextBlock Text="YT-DLP Wrapper"
-                   FontSize="24" FontWeight="Bold"
-                   Foreground="{DynamicResource AppText}"
-                   VerticalAlignment="Center" />
-        <Button Grid.Column="1" Content="About"
-                Command="{Binding ToggleAboutCommand}"
-                AutomationProperties.Name="Show application information" />
-      </Grid>
-
-      <Border Grid.Row="1" IsVisible="{Binding ShowAbout}"
-              Background="{DynamicResource AppHighlight}" CornerRadius="8" Padding="14">
-        <StackPanel Spacing="8">
-          <TextBlock Foreground="#121619" TextWrapping="Wrap"
-                     Text="This wrapper is opinionated and always exports H.264 + AAC MP4s for maximum compatibility with Premiere Pro and similar editors." />
-          <TextBlock Foreground="#121619"
-                     Text="{Binding CurrentApplicationVersion, StringFormat='Version {0}'}" />
-          <TextBlock Foreground="#121619" TextWrapping="Wrap"
-                     Text="{Binding ApplicationUpdateStatus}" />
-          <Border HorizontalAlignment="Left" Background="Transparent" Cursor="No">
-            <Button Content="Check for updates"
-                    Cursor="Arrow"
-                    Background="{DynamicResource AppPanel}"
-                    Foreground="{DynamicResource AppText}"
-                    Command="{Binding CheckForApplicationUpdateCommand}"
-                    IsEnabled="{Binding CanCheckForApplicationUpdates}">
-              <Button.Resources>
-                <SolidColorBrush x:Key="ButtonBackground" Color="{StaticResource AppPanelColor}" />
-                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{StaticResource AppPanelPointerOverColor}" />
-                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{StaticResource AppPanelPressedColor}" />
-                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="{StaticResource AppDisabledButtonBorderColor}" />
-                <SolidColorBrush x:Key="ButtonForeground" Color="{StaticResource AppTextColor}" />
-                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{StaticResource AppTextColor}" />
-                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{StaticResource AppTextColor}" />
-                <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="{StaticResource AppDisabledButtonForegroundColor}" />
-              </Button.Resources>
-            </Button>
+    <Grid RowDefinitions="Auto,*">
+      <Border Grid.Row="0"
+              Background="{DynamicResource AppAccentStrong}"
+              BorderBrush="{DynamicResource AppText}"
+              BorderThickness="0,0,0,2"
+              Padding="24,20">
+        <Grid Height="70" ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <Border BorderBrush="{DynamicResource AppPaper}"
+                  BorderThickness="2"
+                  Padding="7,6">
+            <Viewbox Stretch="Fill" StretchDirection="Both">
+              <TextBlock Text="YT-DLP Wrapper"
+                         FontSize="44"
+                         FontWeight="Black"
+                         LetterSpacing="-1.6"
+                         Foreground="{DynamicResource AppPaper}" />
+            </Viewbox>
           </Border>
-        </StackPanel>
+          <Button Grid.Column="1"
+                  Classes="headerAction"
+                  Height="70"
+                  Content="About"
+                  Command="{Binding ToggleAboutCommand}"
+                  AutomationProperties.Name="Show application information" />
+        </Grid>
       </Border>
 
-      <Border Grid.Row="2" IsVisible="{Binding ShowApplicationUpdatePanel}"
-              Background="{DynamicResource AppPanel}" CornerRadius="8" Padding="14">
-        <StackPanel Spacing="8">
-          <TextBlock Text="Update available" FontWeight="Bold" Foreground="{DynamicResource AppText}" />
-          <TextBlock Text="{Binding ApplicationUpdateStatus}" TextWrapping="Wrap" Foreground="{DynamicResource AppText}" />
-          <ProgressBar Minimum="0" Maximum="100" Value="{Binding ApplicationUpdateProgress}"
-                       IsVisible="{Binding ApplicationUpdateBusy}" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="Download and restart" Command="{Binding InstallApplicationUpdateCommand}"
-                    IsEnabled="{Binding CanInstallApplicationUpdate}" />
-            <Button Content="Later" Command="{Binding DeferApplicationUpdateCommand}"
-                    IsEnabled="{Binding !ApplicationUpdateBusy}" />
+      <StackPanel Grid.Row="1" Margin="32,26,32,30" Spacing="20">
+        <Border IsVisible="{Binding ShowAbout}"
+                Background="{DynamicResource AppSurface}"
+                BorderBrush="{DynamicResource AppText}"
+                BorderThickness="2"
+                Padding="20,18">
+          <StackPanel Spacing="9">
+            <TextBlock Foreground="{DynamicResource AppText}"
+                       FontSize="16"
+                       FontWeight="Medium"
+                       TextWrapping="Wrap"
+                       Text="This wrapper will always export H.264 + AAC MP4s for compatibility with Premiere Pro and the like." />
+            <TextBlock Foreground="{DynamicResource AppText}"
+                       FontSize="14"
+                       FontWeight="Bold"
+                       Text="{Binding CurrentApplicationVersion, StringFormat='Version {0}'}" />
+            <TextBlock Foreground="{DynamicResource AppText}"
+                       FontSize="14"
+                       TextWrapping="Wrap"
+                       Text="{Binding ApplicationUpdateStatus}" />
+            <Border HorizontalAlignment="Left" Background="Transparent" Cursor="No">
+              <Button Classes="panelAction"
+                      Content="Check for updates"
+                      Cursor="Arrow"
+                      Command="{Binding CheckForApplicationUpdateCommand}"
+                      IsEnabled="{Binding CanCheckForApplicationUpdates}" />
+            </Border>
           </StackPanel>
-        </StackPanel>
-      </Border>
+        </Border>
 
-      <Border Grid.Row="3" IsVisible="{Binding ShowInstallPanel}"
-              Background="{DynamicResource AppPanel}" CornerRadius="8" Padding="14">
+        <Border IsVisible="{Binding ShowApplicationUpdatePanel}"
+                Background="{DynamicResource AppPanel}"
+                BorderBrush="{DynamicResource AppText}"
+                BorderThickness="2"
+                Padding="20,18">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Update available"
+                       FontSize="18"
+                       FontWeight="ExtraBold"
+                       Foreground="{DynamicResource AppText}" />
+            <TextBlock Text="{Binding ApplicationUpdateStatus}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource AppText}" />
+            <ProgressBar Minimum="0" Maximum="100"
+                         Value="{Binding ApplicationUpdateProgress}"
+                         IsVisible="{Binding ApplicationUpdateBusy}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="primary"
+                      Content="Download and restart"
+                      Command="{Binding InstallApplicationUpdateCommand}"
+                      IsEnabled="{Binding CanInstallApplicationUpdate}" />
+              <Button Classes="panelAction"
+                      Content="Later"
+                      Command="{Binding DeferApplicationUpdateCommand}"
+                      IsEnabled="{Binding !ApplicationUpdateBusy}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border IsVisible="{Binding ShowInstallPanel}"
+                Background="{DynamicResource AppAccentStrong}"
+                Padding="20,18">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Required tools are not installed."
+                       FontSize="18"
+                       FontWeight="ExtraBold"
+                       Foreground="{DynamicResource AppPaper}" />
+            <TextBlock Text="{Binding UpdateSummary}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource AppPaper}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="panelAction"
+                      Content="Install tools"
+                      Command="{Binding InstallToolsCommand}"
+                      IsEnabled="{Binding CanInstallTools}" />
+              <Button Content="Retry check"
+                      Command="{Binding CheckToolsCommand}"
+                      IsEnabled="{Binding CanBrowse}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border IsVisible="{Binding ShowUpdatePanel}"
+                Background="{DynamicResource AppPanel}"
+                BorderBrush="{DynamicResource AppText}"
+                BorderThickness="2"
+                Padding="20,18">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Tool updates are available."
+                       FontSize="18"
+                       FontWeight="ExtraBold"
+                       Foreground="{DynamicResource AppText}" />
+            <TextBlock Text="{Binding UpdateSummary}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource AppText}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="primary"
+                      Content="Update"
+                      Command="{Binding InstallToolsCommand}"
+                      IsEnabled="{Binding CanInstallTools}" />
+              <Button Classes="panelAction"
+                      Content="Later"
+                      Command="{Binding DeferUpdateCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
         <StackPanel Spacing="8">
-          <TextBlock Text="Required tools are not installed." FontWeight="Bold" Foreground="{DynamicResource AppText}" />
-          <TextBlock Text="{Binding UpdateSummary}" TextWrapping="Wrap" Foreground="{DynamicResource AppText}" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="Install tools" Command="{Binding InstallToolsCommand}"
-                    IsEnabled="{Binding CanInstallTools}" />
-            <Button Content="Retry check" Command="{Binding CheckToolsCommand}"
+          <TextBlock Text="URL"
+                     FontSize="15"
+                     FontWeight="ExtraBold"
+                     Foreground="{DynamicResource AppText}" />
+          <TextBox Height="48"
+                   Text="{Binding Url}"
+                   PlaceholderText="https://…"
+                   IsEnabled="{Binding CanEdit}"
+                   AutomationProperties.Name="URL" />
+        </StackPanel>
+
+        <Border Background="{DynamicResource AppPanel}"
+                BorderBrush="{DynamicResource AppText}"
+                BorderThickness="2"
+                Padding="18,16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Quality"
+                       FontSize="15"
+                       FontWeight="ExtraBold"
+                       Foreground="{DynamicResource AppText}" />
+            <Slider Margin="2,4,2,0"
+                    Minimum="0" Maximum="2" TickFrequency="1"
+                    IsSnapToTickEnabled="True"
+                    Value="{Binding VideoQuality}"
+                    IsEnabled="{Binding CanChangeQuality}"
+                    AutomationProperties.Name="Quality, 1080p, 1440p, or best" />
+            <Grid ColumnDefinitions="*,*,*">
+              <TextBlock Text="1080p"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource AppMutedText}" />
+              <TextBlock Grid.Column="1"
+                         Text="1440p"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         TextAlignment="Center"
+                         Foreground="{DynamicResource AppMutedText}" />
+              <TextBlock Grid.Column="2"
+                         Text="Best"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         TextAlignment="Right"
+                         Foreground="{DynamicResource AppMutedText}" />
+            </Grid>
+            <CheckBox Margin="0,2,0,0"
+                      Content="Audio only (M4A with AAC)"
+                      IsChecked="{Binding AudioOnly}"
+                      IsEnabled="{Binding CanEdit}" />
+          </StackPanel>
+        </Border>
+
+        <StackPanel Spacing="8">
+          <TextBlock Text="Output"
+                     FontSize="15"
+                     FontWeight="ExtraBold"
+                     Foreground="{DynamicResource AppText}" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Height="48"
+                     Text="{Binding OutputFolder}"
+                     IsReadOnly="True"
+                     AutomationProperties.Name="Output" />
+            <Button Grid.Column="1"
+                    MinHeight="48"
+                    Content="Browse…"
+                    Command="{Binding BrowseOutputCommand}"
                     IsEnabled="{Binding CanBrowse}" />
+          </Grid>
+        </StackPanel>
+
+        <ProgressBar Minimum="0" Maximum="100"
+                     Value="{Binding Progress}"
+                     IsIndeterminate="{Binding IsProgressIndeterminate}" />
+
+        <Border BorderBrush="{DynamicResource AppLine}"
+                BorderThickness="0,1,0,0"
+                Padding="0,18,0,0">
+          <StackPanel Spacing="12">
+            <TextBlock Classes="status"
+                       Classes.error="{Binding Failed}"
+                       IsVisible="{Binding !HasCompletedFile}"
+                       FontSize="16"
+                       FontWeight="Medium"
+                       Text="{Binding StatusText}"
+                       TextWrapping="Wrap" />
+            <HyperlinkButton IsVisible="{Binding HasCompletedFile}"
+                             HorizontalAlignment="Left"
+                             Foreground="{DynamicResource AppAccentStrong}"
+                             Content="{Binding StatusText}"
+                             Command="{Binding OpenFolderCommand}"
+                             AutomationProperties.Name="Show downloaded file in file manager" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="primary"
+                      IsVisible="{Binding ShowDownloadButton}"
+                      Content="Download"
+                      Command="{Binding StartDownloadCommand}"
+                      IsEnabled="{Binding CanDownload}" />
+              <Button IsVisible="{Binding ShowCancelButton}"
+                      Content="Cancel"
+                      Command="{Binding CancelCommand}" />
+              <Button IsVisible="{Binding ShowDetailsButton}"
+                      Content="{Binding DetailsButtonText}"
+                      Command="{Binding ToggleDetailsCommand}" />
+              <Button IsVisible="{Binding ShowRestartButton}"
+                      Content="Restart engine"
+                      Command="{Binding RestartBackendCommand}" />
+            </StackPanel>
           </StackPanel>
-        </StackPanel>
-      </Border>
+        </Border>
 
-      <Border Grid.Row="3" IsVisible="{Binding ShowUpdatePanel}"
-              Background="{DynamicResource AppPanel}" CornerRadius="8" Padding="14">
-        <StackPanel Spacing="8">
-          <TextBlock Text="Tool updates are available." FontWeight="Bold" Foreground="{DynamicResource AppText}" />
-          <TextBlock Text="{Binding UpdateSummary}" TextWrapping="Wrap" Foreground="{DynamicResource AppText}" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="Update" Command="{Binding InstallToolsCommand}"
-                    IsEnabled="{Binding CanInstallTools}" />
-            <Button Content="Later" Command="{Binding DeferUpdateCommand}" />
-          </StackPanel>
-        </StackPanel>
-      </Border>
-
-      <StackPanel Grid.Row="4" Spacing="6">
-        <TextBlock Text="Video URL" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" />
-        <TextBox Text="{Binding Url}" PlaceholderText="https://…"
-                 IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Video URL" />
+        <TextBox Classes="details"
+                 IsVisible="{Binding ShowDetails}"
+                 Text="{Binding DetailsText}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 AutomationProperties.Name="Error details" />
       </StackPanel>
-
-      <StackPanel Grid.Row="5" Spacing="5">
-        <TextBlock Text="Video quality" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" />
-        <Slider Minimum="0" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True"
-                Value="{Binding VideoQuality}" IsEnabled="{Binding CanChangeQuality}"
-                AutomationProperties.Name="Video quality, 1080p, 1440p, or best" />
-        <Grid ColumnDefinitions="*,*,*">
-          <TextBlock Text="1080p" Foreground="{DynamicResource AppText}" />
-          <TextBlock Grid.Column="1" Text="1440p" TextAlignment="Center" Foreground="{DynamicResource AppText}" />
-          <TextBlock Grid.Column="2" Text="Best" TextAlignment="Right" Foreground="{DynamicResource AppText}" />
-        </Grid>
-        <CheckBox Content="Audio only (M4A with AAC)" IsChecked="{Binding AudioOnly}"
-                  IsEnabled="{Binding CanEdit}" />
-      </StackPanel>
-
-      <StackPanel Grid.Row="6" Spacing="6" VerticalAlignment="Top">
-        <TextBlock Text="Output folder" FontWeight="SemiBold" Foreground="{DynamicResource AppText}" />
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <TextBox Text="{Binding OutputFolder}" IsReadOnly="True"
-                   AutomationProperties.Name="Output folder" />
-          <Button Grid.Column="1" Content="Browse…" Command="{Binding BrowseOutputCommand}"
-                  IsEnabled="{Binding CanBrowse}" />
-        </Grid>
-      </StackPanel>
-
-      <ProgressBar Grid.Row="7" Minimum="0" Maximum="100"
-                   Value="{Binding Progress}"
-                   IsIndeterminate="{Binding IsProgressIndeterminate}" />
-
-      <StackPanel Grid.Row="8" Spacing="8">
-        <TextBlock Classes="status" Classes.error="{Binding Failed}"
-                   IsVisible="{Binding !HasCompletedFile}"
-                   Text="{Binding StatusText}" TextWrapping="Wrap" />
-        <HyperlinkButton IsVisible="{Binding HasCompletedFile}"
-                         HorizontalAlignment="Left"
-                         Content="{Binding StatusText}"
-                         Command="{Binding OpenFolderCommand}"
-                         AutomationProperties.Name="Show downloaded file in file manager" />
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button IsVisible="{Binding ShowDownloadButton}" Content="Download"
-                  Command="{Binding StartDownloadCommand}" IsEnabled="{Binding CanDownload}" />
-          <Button IsVisible="{Binding ShowCancelButton}" Content="Cancel"
-                  Command="{Binding CancelCommand}" />
-          <Button IsVisible="{Binding ShowDetailsButton}"
-                  Content="{Binding DetailsButtonText}" Command="{Binding ToggleDetailsCommand}" />
-          <Button IsVisible="{Binding ShowRestartButton}" Content="Restart engine"
-                  Command="{Binding RestartBackendCommand}" />
-        </StackPanel>
-      </StackPanel>
-
-      <TextBox Grid.Row="9" IsVisible="{Binding ShowDetails}"
-               Text="{Binding DetailsText}" IsReadOnly="True"
-               AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72"
-               AutomationProperties.Name="Error details" />
     </Grid>
   </ScrollViewer>
 </Window>

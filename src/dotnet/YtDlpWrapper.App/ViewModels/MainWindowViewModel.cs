@@ -157,7 +157,7 @@ public partial class MainWindowViewModel : ObservableObject
     public bool ShowDetailsButton => !string.IsNullOrWhiteSpace(DetailsText);
     public bool IsProgressIndeterminate => Busy && Progress <= 0;
     public bool HasCompletedFile => Completed && !string.IsNullOrWhiteSpace(CompletedPath);
-    public string DetailsButtonText => ShowDetails ? "Hide details" : "Show details";
+    public string DetailsButtonText => ShowDetails ? "Hide details" : "Details";
     public bool ShowRestartButton => EngineUnavailable && !Busy;
     public bool ShowApplicationUpdatePanel => ApplicationUpdateAvailable;
     public bool CanCheckForApplicationUpdates =>
