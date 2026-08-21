@@ -14,7 +14,7 @@ public sealed class MainWindowViewModelTests
         var backend = new FakeBackendClient();
         backend.Enqueue("initialize", InitializeResult());
         backend.Enqueue("checkTools", Json(
-            """{"state":"ready","toolsReady":true,"canInstallTools":false,"updateSummary":"","statusText":"Ready. All tools are current."}"""));
+            """{"state":"ready","toolsReady":true,"canInstallTools":false,"updateSummary":"","statusText":"Ready."}"""));
         var viewModel = CreateViewModel(backend);
 
         await viewModel.InitializeAsync();
@@ -22,7 +22,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("C:/Videos", viewModel.OutputFolder);
         Assert.True(viewModel.ToolsReady);
         Assert.False(viewModel.Busy);
-        Assert.Equal("Ready. All tools are current.", viewModel.StatusText);
+        Assert.Equal("Ready.", viewModel.StatusText);
     }
 
     [Fact]
@@ -68,6 +68,31 @@ public sealed class MainWindowViewModelTests
 
         viewModel.OpenFolderCommand.Execute(null);
         Assert.Equal("C:/Videos/café.mp4", platform.RevealedPath);
+    }
+
+    [Theory]
+    [InlineData(0, "audioOnly", "best")]
+    [InlineData(1, "video", "p1080")]
+    [InlineData(2, "video", "p1440")]
+    [InlineData(3, "video", "best")]
+    public async Task QualitySliderSelectsDownloadMode(
+        double sliderValue,
+        string expectedMode,
+        string expectedVideoQuality)
+    {
+        var backend = new FakeBackendClient();
+        backend.Enqueue("startDownload", Json("""{"operationId":"operation-1"}"""));
+        var viewModel = CreateViewModel(backend);
+        viewModel.Url = "https://example.com/video";
+        viewModel.OutputFolder = "C:/Videos";
+        viewModel.ToolsReady = true;
+        viewModel.Busy = false;
+        viewModel.VideoQuality = sliderValue;
+
+        await viewModel.StartDownloadCommand.ExecuteAsync(null);
+
+        Assert.Equal(expectedMode, backend.LastParameters.GetProperty("mode").GetString());
+        Assert.Equal(expectedVideoQuality, backend.LastParameters.GetProperty("videoQuality").GetString());
     }
 
     [Fact]
@@ -196,6 +221,7 @@ internal sealed class FakeBackendClient : IBackendClient
     public event Action<BackendEvent>? EventReceived;
     public event Action<string?>? BackendExited;
     public int StopCount { get; private set; }
+    public JsonElement LastParameters { get; private set; }
 
     public void Enqueue(string method, JsonElement response)
     {
@@ -212,8 +238,11 @@ internal sealed class FakeBackendClient : IBackendClient
     public Task<JsonElement> SendAsync(
         string method,
         object? parameters = null,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(_responses[method].Dequeue());
+        CancellationToken cancellationToken = default)
+    {
+        LastParameters = JsonSerializer.SerializeToElement(parameters);
+        return Task.FromResult(_responses[method].Dequeue());
+    }
 
     public Task StopAsync()
     {

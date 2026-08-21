@@ -192,7 +192,7 @@ impl AppEngine {
                         tools_ready: true,
                         can_install_tools: false,
                         update_summary: String::new(),
-                        status_text: "Ready. All tools are current.".into(),
+                        status_text: "Ready.".into(),
                     })
                 }
                 Err(error) if cached.is_some() => {
@@ -448,7 +448,7 @@ pub enum BackendError {
     UnsupportedPlatform(String),
     #[error("another operation is already running")]
     Busy,
-    #[error("Enter a valid HTTP or HTTPS video URL.")]
+    #[error("Enter a valid URL.")]
     InvalidUrl,
     #[error("invalid request: {0}")]
     InvalidRequest(String),
