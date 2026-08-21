@@ -119,7 +119,7 @@ To exercise a clean first-run download, checksum verification, and tool startup 
 
 Git tags are the release version source: tag `v0.1.2` produces frontend and backend binaries at version `0.1.2`. Pushing a version tag runs coordinated Windows and Apple Silicon macOS builds. The release is published only after both succeed, with an installer, portable package, full update package, optional delta, and platform update feed for each operating system.
 
-Pull requests and pushes to `main` run the same Windows x64 and Apple Silicon macOS test, build, and smoke-test jobs. Each job uploads a downloadable portable application as a GitHub Actions artifact. These development builds use the next patch version with a CI prerelease suffix, such as `0.1.6-ci.123+abcdef0`; they are not published as GitHub Releases.
+Pull requests and pushes to `main` run formatting and platform-neutral .NET tests once, in parallel with the Windows x64 and Apple Silicon macOS jobs. Each platform job retains its native Rust checks, build, and smoke test, then uploads a downloadable portable application as a GitHub Actions artifact. These development builds use the next patch version with a CI prerelease suffix, such as `0.1.6-ci.123+abcdef0`; they are not published as GitHub Releases.
 
 Create a release by tagging the commit to publish and pushing the tag:
 

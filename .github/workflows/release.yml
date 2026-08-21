@@ -48,6 +48,33 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore .NET packages
+        run: dotnet restore YtDlpWrapper.slnx
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check .NET formatting
+        run: dotnet format YtDlpWrapper.slnx --verify-no-changes --no-restore
+
+      - name: Run platform-neutral .NET tests
+        run: dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
+
   build-windows:
     needs: prepare
     runs-on: windows-latest
@@ -60,7 +87,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
-          components: rustfmt, clippy
+          components: clippy
 
       - name: Install .NET 10
         uses: actions/setup-dotnet@v5
@@ -71,22 +98,13 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Restore .NET packages
-        run: dotnet restore YtDlpWrapper.slnx
-
-      - name: Check Rust formatting
-        run: cargo fmt --all -- --check
+        run: dotnet restore src/dotnet/YtDlpWrapper.App/YtDlpWrapper.App.csproj --runtime win-x64
 
       - name: Run Clippy
         run: cargo clippy --all-targets --target x86_64-pc-windows-msvc --locked -- -D warnings
 
       - name: Run Rust tests
         run: cargo test --all-targets --target x86_64-pc-windows-msvc --locked
-
-      - name: Check .NET formatting
-        run: dotnet format YtDlpWrapper.slnx --verify-no-changes --no-restore
-
-      - name: Run .NET tests
-        run: dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
 
       - name: Build Rust backend
         env:
@@ -188,7 +206,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin
-          components: rustfmt, clippy
+          components: clippy
 
       - name: Install .NET 10
         uses: actions/setup-dotnet@v5
@@ -208,19 +226,10 @@ jobs:
           echo "DEVELOPER_DIR=$xcode_path" >> "$GITHUB_ENV"
           DEVELOPER_DIR="$xcode_path" xcodebuild -version
 
-      - name: Restore .NET packages
-        run: dotnet restore YtDlpWrapper.slnx
-
-      - name: Check and test Rust
+      - name: Check and test native Rust code
         run: |
-          cargo fmt --all -- --check
           cargo clippy --all-targets --target aarch64-apple-darwin --locked -- -D warnings
           cargo test --all-targets --target aarch64-apple-darwin --locked
-
-      - name: Check and test .NET
-        run: |
-          dotnet format YtDlpWrapper.slnx --verify-no-changes --no-restore
-          dotnet test YtDlpWrapper.slnx --no-restore -m:1 --disable-build-servers -warnaserror
 
       - name: Build macOS ARM64 application bundle
         env:
@@ -314,7 +323,7 @@ jobs:
 
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-macos-arm64]
+    needs: [quality, build-windows, build-macos-arm64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
