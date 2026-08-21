@@ -192,7 +192,7 @@ impl AppEngine {
                         tools_ready: true,
                         can_install_tools: false,
                         update_summary: String::new(),
-                        status_text: "Ready. All tools are current.".into(),
+                        status_text: "Ready.".into(),
                     })
                 }
                 Err(error) if cached.is_some() => {

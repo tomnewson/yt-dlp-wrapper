@@ -25,11 +25,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string _outputFolder = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanChangeQuality))]
-    private bool _audioOnly;
-
-    [ObservableProperty]
-    private double _videoQuality = 2;
+    private double _videoQuality = 3;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(
@@ -73,9 +69,6 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DetailsButtonText))]
     private bool _showDetails;
-
-    [ObservableProperty]
-    private bool _showAbout;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsProgressIndeterminate))]
@@ -146,7 +139,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool CanEdit => ToolsReady && !Busy && !ApplicationUpdateBusy;
     public bool CanBrowse => !Busy && !ApplicationUpdateBusy;
-    public bool CanChangeQuality => CanEdit && !AudioOnly;
+    public bool CanChangeQuality => CanEdit;
     public bool CanDownload =>
         ToolsReady && !Busy && !ApplicationUpdateBusy && !UpdateAvailable &&
         !string.IsNullOrWhiteSpace(Url) && !string.IsNullOrWhiteSpace(OutputFolder);
@@ -164,8 +157,6 @@ public partial class MainWindowViewModel : ObservableObject
         _applicationUpdater.CanUpdate && !ApplicationUpdateBusy;
     public bool CanInstallApplicationUpdate =>
         ApplicationUpdateAvailable && !ApplicationUpdateBusy && !Busy;
-    public string CurrentApplicationVersion => _applicationUpdater.CurrentVersion;
-
     public async Task InitializeAsync()
     {
         try
@@ -193,7 +184,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
     private async Task CheckForApplicationUpdateAsync()
     {
         if (!_applicationUpdater.CanUpdate || ApplicationUpdateBusy)
@@ -361,16 +351,17 @@ public partial class MainWindowViewModel : ObservableObject
         Progress = 0;
         try
         {
-            var quality = (int)Math.Round(VideoQuality) switch
+            var selectedQuality = (int)Math.Round(VideoQuality);
+            var quality = selectedQuality switch
             {
-                <= 0 => "p1080",
-                1 => "p1440",
+                1 => "p1080",
+                2 => "p1440",
                 _ => "best",
             };
             var result = await _backend.SendAsync("startDownload", new
             {
                 url = Url,
-                mode = AudioOnly ? "audioOnly" : "video",
+                mode = selectedQuality <= 0 ? "audioOnly" : "video",
                 videoQuality = quality,
                 outputFolder = OutputFolder,
             });
@@ -410,9 +401,6 @@ public partial class MainWindowViewModel : ObservableObject
             _platform.RevealFile(CompletedPath);
         }
     }
-
-    [RelayCommand]
-    private void ToggleAbout() => ShowAbout = !ShowAbout;
 
     [RelayCommand]
     private void ToggleDetails() => ShowDetails = !ShowDetails;

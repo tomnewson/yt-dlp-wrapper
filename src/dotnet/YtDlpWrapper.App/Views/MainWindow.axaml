@@ -4,8 +4,8 @@
         x:Class="YtDlpWrapper.Views.MainWindow"
         x:DataType="viewModels:MainWindowViewModel"
         Title="YT-DLP Wrapper"
-        Width="680" Height="760"
-        MinWidth="560" MinHeight="620"
+        Width="680" Height="660"
+        MinWidth="200" MinHeight="150"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBackground}">
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -15,57 +15,21 @@
               BorderBrush="{DynamicResource AppText}"
               BorderThickness="0,0,0,2"
               Padding="24,20">
-        <Grid Height="70" ColumnDefinitions="*,Auto" ColumnSpacing="16">
           <Border BorderBrush="{DynamicResource AppPaper}"
                   BorderThickness="2"
                   Padding="7,6">
             <Viewbox Stretch="Fill" StretchDirection="Both">
               <TextBlock Text="YT-DLP Wrapper"
                          FontSize="44"
-                         FontWeight="Black"
+                         FontWeight="Normal"
                          LetterSpacing="-1.6"
                          Foreground="{DynamicResource AppPaper}" />
             </Viewbox>
           </Border>
-          <Button Grid.Column="1"
-                  Classes="headerAction"
-                  Height="70"
-                  Content="About"
-                  Command="{Binding ToggleAboutCommand}"
-                  AutomationProperties.Name="Show application information" />
-        </Grid>
+         
       </Border>
 
       <StackPanel Grid.Row="1" Margin="32,26,32,30" Spacing="20">
-        <Border IsVisible="{Binding ShowAbout}"
-                Background="{DynamicResource AppSurface}"
-                BorderBrush="{DynamicResource AppText}"
-                BorderThickness="2"
-                Padding="20,18">
-          <StackPanel Spacing="9">
-            <TextBlock Foreground="{DynamicResource AppText}"
-                       FontSize="16"
-                       FontWeight="Medium"
-                       TextWrapping="Wrap"
-                       Text="This wrapper will always export H.264 + AAC MP4s for compatibility with Premiere Pro and the like." />
-            <TextBlock Foreground="{DynamicResource AppText}"
-                       FontSize="14"
-                       FontWeight="Bold"
-                       Text="{Binding CurrentApplicationVersion, StringFormat='Version {0}'}" />
-            <TextBlock Foreground="{DynamicResource AppText}"
-                       FontSize="14"
-                       TextWrapping="Wrap"
-                       Text="{Binding ApplicationUpdateStatus}" />
-            <Border HorizontalAlignment="Left" Background="Transparent" Cursor="No">
-              <Button Classes="panelAction"
-                      Content="Check for updates"
-                      Cursor="Arrow"
-                      Command="{Binding CheckForApplicationUpdateCommand}"
-                      IsEnabled="{Binding CanCheckForApplicationUpdates}" />
-            </Border>
-          </StackPanel>
-        </Border>
-
         <Border IsVisible="{Binding ShowApplicationUpdatePanel}"
                 Background="{DynamicResource AppPanel}"
                 BorderBrush="{DynamicResource AppText}"
@@ -74,7 +38,7 @@
           <StackPanel Spacing="10">
             <TextBlock Text="Update available"
                        FontSize="18"
-                       FontWeight="ExtraBold"
+                       FontWeight="Normal"
                        Foreground="{DynamicResource AppText}" />
             <TextBlock Text="{Binding ApplicationUpdateStatus}"
                        TextWrapping="Wrap"
@@ -101,7 +65,7 @@
           <StackPanel Spacing="10">
             <TextBlock Text="Required tools are not installed."
                        FontSize="18"
-                       FontWeight="ExtraBold"
+                       FontWeight="Normal"
                        Foreground="{DynamicResource AppPaper}" />
             <TextBlock Text="{Binding UpdateSummary}"
                        TextWrapping="Wrap"
@@ -126,7 +90,7 @@
           <StackPanel Spacing="10">
             <TextBlock Text="Tool updates are available."
                        FontSize="18"
-                       FontWeight="ExtraBold"
+                       FontWeight="Normal"
                        Foreground="{DynamicResource AppText}" />
             <TextBlock Text="{Binding UpdateSummary}"
                        TextWrapping="Wrap"
@@ -143,75 +107,61 @@
           </StackPanel>
         </Border>
 
-        <StackPanel Spacing="8">
-          <TextBlock Text="URL"
-                     FontSize="15"
-                     FontWeight="ExtraBold"
-                     Foreground="{DynamicResource AppText}" />
-          <TextBox Height="48"
-                   Text="{Binding Url}"
-                   PlaceholderText="https://…"
-                   IsEnabled="{Binding CanEdit}"
-                   AutomationProperties.Name="URL" />
-        </StackPanel>
+        <TextBox Height="48"
+                  Text="{Binding Url}"
+                  PlaceholderText="https://…"
+                  IsEnabled="{Binding CanEdit}"
+                  AutomationProperties.Name="URL" />
 
         <Border Background="{DynamicResource AppPanel}"
                 BorderBrush="{DynamicResource AppText}"
                 BorderThickness="2"
                 Padding="18,16">
           <StackPanel Spacing="10">
-            <TextBlock Text="Quality"
-                       FontSize="15"
-                       FontWeight="ExtraBold"
-                       Foreground="{DynamicResource AppText}" />
             <Slider Margin="2,4,2,0"
-                    Minimum="0" Maximum="2" TickFrequency="1"
+                  Minimum="0" Maximum="3" TickFrequency="1"
                     IsSnapToTickEnabled="True"
                     Value="{Binding VideoQuality}"
                     IsEnabled="{Binding CanChangeQuality}"
-                    AutomationProperties.Name="Quality, 1080p, 1440p, or best" />
-            <Grid ColumnDefinitions="*,*,*">
-              <TextBlock Text="1080p"
+                  AutomationProperties.Name="Quality, audio only, 1080p, 1440p, or best" />
+                <Grid ColumnDefinitions="*,*,*,*">
+                  <TextBlock Text="Audio"
                          FontSize="14"
-                         FontWeight="SemiBold"
+                         FontWeight="Normal"
                          Foreground="{DynamicResource AppMutedText}" />
               <TextBlock Grid.Column="1"
-                         Text="1440p"
+                 Text="1080p"
                          FontSize="14"
-                         FontWeight="SemiBold"
+                         FontWeight="Normal"
                          TextAlignment="Center"
                          Foreground="{DynamicResource AppMutedText}" />
               <TextBlock Grid.Column="2"
-                         Text="Best"
+                 Text="1440p"
                          FontSize="14"
-                         FontWeight="SemiBold"
+                         FontWeight="Normal"
+                 TextAlignment="Center"
+                 Foreground="{DynamicResource AppMutedText}" />
+                  <TextBlock Grid.Column="3"
+                 Text="Best"
+                 FontSize="14"
+                 FontWeight="Normal"
                          TextAlignment="Right"
                          Foreground="{DynamicResource AppMutedText}" />
             </Grid>
-            <CheckBox Margin="0,2,0,0"
-                      Content="Audio only (M4A with AAC)"
-                      IsChecked="{Binding AudioOnly}"
-                      IsEnabled="{Binding CanEdit}" />
           </StackPanel>
         </Border>
 
-        <StackPanel Spacing="8">
-          <TextBlock Text="Output"
-                     FontSize="15"
-                     FontWeight="ExtraBold"
-                     Foreground="{DynamicResource AppText}" />
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <TextBox Height="48"
-                     Text="{Binding OutputFolder}"
-                     IsReadOnly="True"
-                     AutomationProperties.Name="Output" />
-            <Button Grid.Column="1"
-                    MinHeight="48"
-                    Content="Browse…"
-                    Command="{Binding BrowseOutputCommand}"
-                    IsEnabled="{Binding CanBrowse}" />
-          </Grid>
-        </StackPanel>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox Height="48"
+                    Text="{Binding OutputFolder}"
+                    IsReadOnly="True"
+                    AutomationProperties.Name="Output" />
+          <Button Grid.Column="1"
+                  MinHeight="48"
+                  Content="Browse"
+                  Command="{Binding BrowseOutputCommand}"
+                  IsEnabled="{Binding CanBrowse}" />
+        </Grid>
 
         <ProgressBar Minimum="0" Maximum="100"
                      Value="{Binding Progress}"
@@ -225,7 +175,7 @@
                        Classes.error="{Binding Failed}"
                        IsVisible="{Binding !HasCompletedFile}"
                        FontSize="16"
-                       FontWeight="Medium"
+                       FontWeight="Normal"
                        Text="{Binding StatusText}"
                        TextWrapping="Wrap" />
             <HyperlinkButton IsVisible="{Binding HasCompletedFile}"
