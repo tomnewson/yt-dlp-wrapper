@@ -1,14 +1,23 @@
-# yt-dlp-wrapper
+# YT-DLP Wrapper
+## Install
+[Download Latest Release](https://github.com/tomnewson/yt-dlp-wrapper/releases) 
 
-`yt-dlp-wrapper` is a small Windows and Apple Silicon macOS GUI for downloading one video at a time. The interface is built with C# and Avalonia; a private Rust sidecar performs tool management and media processing. It uses the current yt-dlp nightly build and produces editor-friendly files:
+See build instructions below.
+
+## Description
+`yt-dlp-wrapper` is a small Windows and Apple Silicon macOS GUI for downloading videos from websites. It uses yt-dlp and ffmpeg to produce editor-friendly files from their URL:
 
 - Video: MP4 with H.264 video and AAC audio
 - Audio only: M4A with AAC audio
 
-Before downloading video, the application checks the available formats. The quality slider can limit the video to 1080p or 1440p, or retain the default Best setting. A limited setting selects the highest available resolution at or below that limit; Best selects the maximum advertised resolution. At the selected resolution, the application prefers H.264 and AAC streams so they can be used directly or remuxed without generation loss. It downloads another video codec and transcodes to H.264 only when H.264 is unavailable at that resolution. Audio is converted separately only when no AAC stream is available.
+It supports downloads from any video hosting platform that yt-dlp supports, including:
+- YouTube
+- TikTok
+- Instagram
+- Pinterest
+- Many more! See all [here](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
-When video conversion is required, the Windows backend tests NVIDIA NVENC, Intel Quick Sync, and AMD AMF in that order by encoding a real test frame. On Apple Silicon macOS it tests Apple VideoToolbox. It uses the first working GPU encoder and automatically retries with CPU-based x264 if GPU encoding is unavailable or the hardware encode fails. Remuxing and already-compatible downloads do not invoke a video encoder.
-
+## Video Conversion
 For video conversion, FFmpeg reads the source dimensions and average frame rate and applies the [YouTube SDR encoding guidance](https://support.google.com/youtube/answer/1722171). GPU encoders use the target and maximum; the CRF-based CPU fallback uses the same maximum. High frame rate means 48 fps or greater. Values are target/maximum Mbps:
 
 | Resolution | Standard frame rate | High frame rate |
@@ -23,24 +32,9 @@ For video conversion, FFmpeg reads the source dimensions and average frame rate 
 
 Portrait video is classified by its shorter dimension, so 1080x1920 uses the 1080p tier.
 
-The application supports Windows 10 and Windows 11 on x64 computers and macOS 14 or newer on Apple Silicon (arm64).
-
-## Use
-
-1. On Windows, download `YT-DLP-Wrapper-Installer.exe` from the latest release and run it. On Apple Silicon macOS, download `YT-DLP-Wrapper-macOS-arm64-Installer.pkg` and run it. Portable ZIPs are also provided for both platforms.
-2. Start YT-DLP Wrapper. Portable builds must keep the Rust backend beside the frontend; the supplied packages already have the correct layout.
-3. Approve the first tool download. The application downloads yt-dlp, FFmpeg, ffprobe, and Deno into its application data folder.
-4. Paste one HTTP or HTTPS video URL.
-5. Select a video quality, or select audio-only output.
-6. Select an output folder and start the download.
-
-The first setup needs an internet connection and several hundred MiB of free space. Later runs can use cached tools without an internet connection.
-
-Tools, settings, and logs are stored independently of the application files: `%LOCALAPPDATA%\YT-DLP Wrapper` on Windows and `~/Library/Application Support/YT-DLP Wrapper` on macOS. Updating or replacing the application therefore preserves the tool cache and configuration.
-
 ## Architecture
 
-The Avalonia process owns the window and operating-system integration. It starts the Rust backend without a console window and exchanges versioned, newline-delimited JSON over redirected standard input and output. Media bytes never cross this protocol. Rust owns tool updates, validation, downloads, transcoding, cancellation, configuration, and logs.
+The C# Avalonia process owns the window and operating-system integration. It starts the Rust backend without a console window and exchanges versioned, newline-delimited JSON over redirected standard input and output. Media bytes never cross this protocol. Rust owns tool updates, validation, downloads, transcoding, cancellation, configuration, and logs.
 
 The sidecar protocol is private to matching application releases. Standard output is reserved for protocol messages, and submitted video URLs are not written to normal application logs.
 
@@ -55,8 +49,6 @@ The backend checks these official release sources at startup:
 - yt-dlp nightly builds
 - FFmpeg builds for yt-dlp on Windows; Shaka Project static FFmpeg builds on macOS arm64
 - Deno stable releases
-
-It verifies each downloaded archive or executable with the SHA-256 value published by that project. It activates a new platform-specific toolset only after all tools pass a startup test. A failed update does not replace the cached toolset.
 
 ## Build
 
@@ -99,46 +91,6 @@ Build an ad-hoc-signed, self-contained macOS arm64 app bundle and portable ZIP o
 ./scripts/build-macos-arm64.sh
 open 'dist/macos-arm64/YT-DLP Wrapper.app'
 ```
-
-The resulting frontend and Rust backend are native arm64 Mach-O executables. The ZIP preserves the standard `.app` bundle layout, executable permissions, and the adaptive macOS app icon. Distribution outside local development still requires an Apple Developer ID signature and notarization to avoid Gatekeeper warnings.
-
-The Windows executable, application window, and Velopack installer use `assets/icons/app-icon.ico`. Regenerate it only from the approved transparent Icon Composer PNG—not from the raw SVG layers:
-
-```bash
-./scripts/build-windows-icon.py \
-  assets/icons/app-icon-iOS-Default-1024@1x-transparent.png \
-  assets/icons/app-icon.ico
-```
-
-To exercise a clean first-run download, checksum verification, and tool startup without changing your real application data, run:
-
-```bash
-./scripts/tool-install-smoke.sh \
-  'dist/macos-arm64/YT-DLP Wrapper.app/Contents/MacOS/yt-dlp-wrapper-backend'
-```
-
-Git tags are the release version source: tag `v0.1.2` produces frontend and backend binaries at version `0.1.2`. Pushing a version tag runs coordinated Windows and Apple Silicon macOS builds. The release is published only after both succeed, with an installer, portable package, full update package, optional delta, and platform update feed for each operating system.
-
-Pull requests and pushes to `main` run formatting and platform-neutral .NET tests once, in parallel with the Windows x64 and Apple Silicon macOS jobs. Each platform job retains its native Rust checks, build, and smoke test, then uploads a downloadable portable application as a GitHub Actions artifact. These development builds use the next patch version with a CI prerelease suffix, such as `0.1.6-ci.123+abcdef0`; they are not published as GitHub Releases.
-
-Create a release by tagging the commit to publish and pushing the tag:
-
-```bash
-git tag v0.1.4
-git push origin v0.1.4
-```
-
-The tag must be a semantic version beginning with `v`. GitHub Actions creates or updates the matching GitHub Release and adds the user-facing downloads plus `releases.win.json` and `releases.osx.json` for automatic updates. The first macOS Velopack release is a full update baseline; later releases can generate delta packages from it.
-
-The macOS packages are currently ad-hoc signed rather than Developer ID signed and notarized. A first-time user may need to approve the app or installer in System Settings under Privacy & Security. Once installed, the Velopack-enabled app can replace itself during subsequent updates; its tools, settings, and logs remain in `~/Library/Application Support/YT-DLP Wrapper`.
-
-Enable the repository's pre-commit checks in each new checkout:
-
-```powershell
-git config core.hooksPath .githooks
-```
-
-The hook checks Rust and C# formatting, compiles both projects, runs both test suites, and treats every Clippy warning as an error.
 
 ## Privacy and security
 
