@@ -5,7 +5,7 @@ For normal use: [Download Latest Release](https://github.com/tomnewson/yt-dlp-wr
 For development: See build instructions below.
 
 ## Description
-`yt-dlp-wrapper` is a small Windows and Apple Silicon macOS GUI for downloading videos from websites. It uses yt-dlp and ffmpeg to produce editor-friendly files from their URL:
+A small Windows and Apple Silicon macOS app for downloading videos from websites. It uses yt-dlp and ffmpeg to produce editor-friendly files from their URL:
 
 - Video: MP4 with H.264 video and AAC audio
 - Audio only: M4A with AAC audio
